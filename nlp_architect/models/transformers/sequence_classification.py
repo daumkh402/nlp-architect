@@ -155,6 +155,8 @@ class TransformerSequenceClassifier(TransformerBase):
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
+        
+        return result['f1']
 
     def convert_to_tensors(
         self,
