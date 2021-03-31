@@ -20,7 +20,7 @@ import logging
 import nlp_architect.procedures  # noqa: F401
 from nlp_architect.cli.cmd_registry import CMD_REGISTRY
 from nlp_architect.version import NLP_ARCHITECT_VERSION
-
+import pdb
 logging.basicConfig(format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO)
 
 
