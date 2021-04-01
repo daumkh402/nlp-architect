@@ -6,7 +6,7 @@ nlp-train transformer_glue \
        --task_name mrpc \
        --model_name_or_path bert-base-uncased \
        --model_type quant_bert \
-       --output_dir ../nlp_arch_results/mrpc-8bit  \
+       --output_dir ../nlp_arch_results/mrpc-8bit/test \
        --evaluate_during_training \
        --data_dir ../glue_data/MRPC \
        --do_lower_case \

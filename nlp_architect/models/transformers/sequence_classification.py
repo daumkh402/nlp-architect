@@ -33,6 +33,12 @@ from nlp_architect.models.transformers.base_model import InputFeatures, Transfor
 from nlp_architect.models.transformers.quantized_bert import QuantizedBertForSequenceClassification
 from nlp_architect.utils.metrics import accuracy
 
+##
+import pdb
+import wandb
+##
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,8 +71,8 @@ class TransformerSequenceClassifier(TransformerBase):
         metric_fn=accuracy,
         load_quantized=False,
         *args,
-        **kwargs,
-    ):
+        **kwargs,):
+    
         assert model_type in self.MODEL_CLASS.keys(), "unsupported model type"
         self.labels = labels
         self.num_labels = len(labels)
@@ -91,6 +97,13 @@ class TransformerSequenceClassifier(TransformerBase):
         self.metric_fn = metric_fn
         self.to(self.device, self.n_gpus)
 
+        ##
+        self.WANDB = wandb.init(project="mrpc-dist-test")
+        # pdb.set_trace()
+        self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
+        ##
+
+
     def train(
         self,
         train_data_set: DataLoader,
@@ -102,8 +115,8 @@ class TransformerSequenceClassifier(TransformerBase):
         num_train_epochs: int = 3,
         max_grad_norm: float = 1.0,
         logging_steps: int = 50,
-        save_steps: int = 100,
-    ):
+        save_steps: int = 100,):
+    
         """
         Train a model
 
@@ -162,8 +175,8 @@ class TransformerSequenceClassifier(TransformerBase):
         self,
         examples: List[SequenceClsInputExample],
         max_seq_length: int = 128,
-        include_labels: bool = True,
-    ) -> TensorDataset:
+        include_labels: bool = True,) -> TensorDataset:
+    
         """
         Convert examples to tensor dataset
 
@@ -202,8 +215,8 @@ class TransformerSequenceClassifier(TransformerBase):
         examples: List[SequenceClsInputExample],
         max_seq_length: int,
         batch_size: int = 64,
-        evaluate=False,
-    ):
+        evaluate=False,):
+    
         """
         Run inference on given examples
 
@@ -246,8 +259,8 @@ class TransformerSequenceClassifier(TransformerBase):
         pad_on_left=False,
         pad_token=0,
         pad_token_segment_id=0,
-        mask_padding_with_zero=True,
-    ):
+        mask_padding_with_zero=True,):
+    
         """Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]

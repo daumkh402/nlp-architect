@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../nlp_arch_results"
+		},
+		{
+			"path": "../../anaconda3/lib/python3.7/site-packages/transformers"
+		}
+	],
+	"settings": {}
+}

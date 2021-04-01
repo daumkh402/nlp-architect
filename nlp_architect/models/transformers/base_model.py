@@ -36,7 +36,8 @@ from transformers import (
 
 from nlp_architect.models import TrainableModel
 from nlp_architect.models.transformers.quantized_bert import QuantizedBertConfig
-
+import pdb
+import wandb
 logger = logging.getLogger(__name__)
 
 
@@ -79,8 +80,8 @@ class TransformerBase(TrainableModel):
         do_lower_case=False,
         output_path=None,
         device="cpu",
-        n_gpus=0,
-    ):
+        n_gpus=0,):
+    
         """
         Transformers base model (for working with pytorch-transformers models)
 
@@ -158,8 +159,8 @@ class TransformerBase(TrainableModel):
         learning_rate: float = 5e-5,
         adam_epsilon: float = 1e-8,
         warmup_steps: int = 0,
-        total_steps: int = 0,
-    ):
+        total_steps: int = 0,):
+    
         # Prepare optimizer and schedule (linear warmup and decay)
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
@@ -244,8 +245,8 @@ class TransformerBase(TrainableModel):
 
     @staticmethod
     def get_train_steps_epochs(
-        max_steps: int, num_train_epochs: int, gradient_accumulation_steps: int, num_samples: int
-    ):
+        max_steps: int, num_train_epochs: int, gradient_accumulation_steps: int, num_samples: int):
+    
         """
         get train steps and epochs
 
@@ -283,8 +284,8 @@ class TransformerBase(TrainableModel):
         max_grad_norm: float = 1.0,
         logging_steps: int = 50,
         save_steps: int = 100,
-        best_result_file: str = None,
-    ):
+        best_result_file: str = None,):
+    
         """Run model training
         batch_mapper: a function that maps a batch into parameters that the model
                       expects in the forward method (for use with custom heads and models).
@@ -364,7 +365,10 @@ class TransformerBase(TrainableModel):
                         self.save_model_checkpoint(
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
+                ##
+                wandb.log({"train_loss": tr_loss / global_step,"learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
 
+                ##
                 if 0 < max_steps < global_step:
                     epoch_iterator.close()
                     break
@@ -392,8 +396,8 @@ class TransformerBase(TrainableModel):
         best_dev,
         best_dev_test,
         best_result_file,
-        save_path=None,
-    ):
+        save_path=None,):
+    
         new_best_dev = best_dev
         new_test_dev = best_dev_test
         set_test = False

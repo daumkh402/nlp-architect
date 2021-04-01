@@ -1,0 +1,39 @@
+{
+    "os": "Linux-4.15.0-117-generic-x86_64-with-debian-buster-sid",
+    "python": "3.7.3",
+    "heartbeatAt": "2021-03-31T10:55:17.682832",
+    "startedAt": "2021-03-31T10:55:14.653388",
+    "docker": null,
+    "gpu": "Tesla V100-DGXS-32GB",
+    "gpu_count": 4,
+    "cpu_count": 40,
+    "cuda": "10.1.243",
+    "args": [
+        "transformer_glue",
+        "--task_name",
+        "mrpc",
+        "--model_name_or_path",
+        "bert-base-uncased",
+        "--model_type",
+        "quant_bert",
+        "--output_dir",
+        "../nlp_arch_results/mrpc-8bit/test",
+        "--evaluate_during_training",
+        "--data_dir",
+        "../glue_data/MRPC",
+        "--do_lower_case",
+        "--overwrite_output_dir"
+    ],
+    "state": "running",
+    "program": "/home/imza/nlp-architect/nlp_architect/nlp-train",
+    "codePath": "nlp_architect/nlp-train",
+    "git": {
+        "remote": "https://github.com/daumkh402/nlp-architect.git",
+        "commit": "a676259b94a5101510987456872133ba246b422e"
+    },
+    "email": "daumkh402@naver.com",
+    "root": "/home/imza/nlp-architect",
+    "host": "watson",
+    "username": "imza",
+    "executable": "/home/imza/anaconda3/bin/python"
+}
