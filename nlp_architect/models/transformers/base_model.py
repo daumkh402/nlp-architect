@@ -38,6 +38,7 @@ from nlp_architect.models import TrainableModel
 from nlp_architect.models.transformers.quantized_bert import QuantizedBertConfig
 import pdb
 import wandb
+import time
 logger = logging.getLogger(__name__)
 
 
@@ -282,7 +283,7 @@ class TransformerBase(TrainableModel):
         max_steps: int = -1,
         num_train_epochs: int = 3,
         max_grad_norm: float = 1.0,
-        logging_steps: int = 50,
+        logging_steps: int = 50,    
         save_steps: int = 100,
         best_result_file: str = None,):
     
@@ -321,10 +322,13 @@ class TransformerBase(TrainableModel):
         self.model.zero_grad()
         train_iterator = trange(num_train_epochs, desc="Epoch")
 
+        pure_training_time = 0
+        eval_time = 0
         for epoch, _ in enumerate(train_iterator):
             print("****** Epoch: " + str(epoch))
-            epoch_iterator = tqdm(data_set, desc="Train iteration")
+            epoch_iterator = tqdm(data_set, desc="Train iteration")       
             for step, batch in enumerate(epoch_iterator):
+                pure_tr_time_start = time.time()           
                 self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = self._batch_mapper(batch)
@@ -346,9 +350,13 @@ class TransformerBase(TrainableModel):
                     self.model.zero_grad()
                     global_step += 1
 
+                    pure_tr_time_end = time.time()
+                    pure_training_time += pure_tr_time_end - pure_tr_time_start
+
                     if logging_steps > 0 and global_step % logging_steps == 0:
                         # Log metrics and run evaluation on dev/test
-                        best_dev, dev_test = self.update_best_model(
+                        eval_time_start = time.time()
+                        best_dev, dev_test, eval_loss = self.update_best_model(
                             dev_data_set,
                             test_data_set,
                             best_dev,
@@ -356,17 +364,20 @@ class TransformerBase(TrainableModel):
                             best_result_file,
                             save_path=best_model_path,
                         )
+                        eval_time_end = time.time()
+                        eval_time += eval_time_end - eval_time_start
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
                         logging_loss = tr_loss
 
+                        wandb.log({"eval_loss":eval_loss})    
                     if save_steps > 0 and global_step % save_steps == 0:
                         # Save model checkpoint
                         self.save_model_checkpoint(
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
                 ##
-                wandb.log({"train_loss": tr_loss / global_step,"learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                wandb.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
 
                 ##
                 if 0 < max_steps < global_step:
@@ -379,6 +390,14 @@ class TransformerBase(TrainableModel):
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
+        tr_hour = int(pure_training_time / 3600)
+        tr_minute = int((pure_training_time % 3600) / 60)
+        tr_second = int(pure_training_time % 60)
+        ev_hour = int(eval_time / 3600)
+        ev_minute = int((eval_time % 3600) / 60) 
+        ev_second = int((eval_time) % 60)
+        logger.info(f'pure_training_time = {tr_hour:02d} : {tr_minute:02d} : {tr_second:02d}')
+        logger.info(f'eval_time = {ev_hour:02d} : {ev_minute:02d} : {ev_second:02d}')
         # final evaluation:
         self.update_best_model(
             dev_data_set,
@@ -402,13 +421,19 @@ class TransformerBase(TrainableModel):
         new_test_dev = best_dev_test
         set_test = False
 
+
         for i, ds in enumerate([dev_data_set, test_data_set]):
             if ds is None:  # got no data loader
                 continue
             if isinstance(ds, DataLoader):
                 ds = [ds]
+            
+            #
+            eval_loss = 0.0
+            #
             for d in ds:
-                logits, label_ids = self._evaluate(d)
+                logits, label_ids, ev_loss = self._evaluate(d)
+                eval_loss += ev_loss
                 f1 = self.evaluate_predictions(logits, label_ids)
                 if i == 0 and f1 > best_dev:  # dev set
                     new_best_dev = f1
@@ -423,8 +448,11 @@ class TransformerBase(TrainableModel):
                             f.write(
                                 "best dev= " + str(new_best_dev) + ", test= " + str(new_test_dev)
                             )
+
+            eval_loss /= len(ds)   
+
         logger.info("\n\nBest dev=%s. test=%s\n", str(new_best_dev), str(new_test_dev))
-        return new_best_dev, new_test_dev
+        return new_best_dev, new_test_dev, eval_loss
 
     def _evaluate(self, data_set: DataLoader):
         logger.info("***** Running inference *****")
@@ -443,11 +471,13 @@ class TransformerBase(TrainableModel):
                 if "labels" in inputs:
                     tmp_eval_loss, logits = outputs[:2]
                     eval_loss += tmp_eval_loss.mean().item()
+                    
                 else:
                     logits = outputs[0]
             nb_eval_steps += 1
             model_output = logits.detach().cpu()
             model_out_label_ids = inputs["labels"].detach().cpu() if "labels" in inputs else None
+
             if preds is None:
                 preds = model_output
                 out_label_ids = model_out_label_ids
@@ -460,7 +490,9 @@ class TransformerBase(TrainableModel):
                 )
         if out_label_ids is None:
             return preds
-        return preds, out_label_ids
+        
+        
+        return preds, out_label_ids, eval_loss/nb_eval_steps
 
     def _batch_mapper(self, batch):
         mapping = {

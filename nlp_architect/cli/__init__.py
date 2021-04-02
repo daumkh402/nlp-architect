@@ -41,7 +41,7 @@ def nlp_train_cli():
         sp.set_defaults(func=model["fn"])
 
     args = parser.parse_args()
-    if hasattr(args, "func"):
+    if hasattr(args, "func"):       ##class TransformerGlueTrain.run_procedure()
         args.func(args)
     else:
         parser.print_help()

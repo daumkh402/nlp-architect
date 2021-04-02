@@ -99,6 +99,8 @@ def inference_args(parser: argparse.ArgumentParser):
 
 def train_args(parser: argparse.ArgumentParser, models_family=None):
     """Add training specific arguments for Transformer based models"""
+
+
     parser.add_argument(
         "--model_name_or_path",
         default=None,

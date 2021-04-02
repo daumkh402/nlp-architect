@@ -214,18 +214,18 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
     CONFIG_ATTRIBUTES = QuantizedLayer.CONFIG_ATTRIBUTES + [
         "activation_bits",
         "requantize_output",
-        "ema_decay",
-    ]
+        "ema_decay",]
+    
     REPR_ATTRIBUTES = QuantizedLayer.REPR_ATTRIBUTES + [
         "activation_bits",
         "accumulation_bits",
         "ema_decay",
-        "requantize_output",
-    ]
+        "requantize_output",]
+    
 
     def __init__(
-        self, *args, activation_bits=8, requantize_output=True, ema_decay=0.9999, **kwargs
-    ):
+        self, *args, activation_bits=8, requantize_output=True, ema_decay=0.9999, **kwargs):
+    
         super().__init__(*args, **kwargs)
         if activation_bits < 2:
             raise ValueError(f"activation_bits={activation_bits} must be higher than 1 ")
@@ -254,7 +254,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
             self.fake_quantized_weight,
             self.bias,
         )
-        if self.requantize_output:
+        if self.requantize_output:                          
             if self.mode == QuantizationMode.EMA:
                 self._update_ema(self.output_thresh, out.detach())
             out = _fake_quantize(out, self._get_output_scale(out), self.activation_bits)
@@ -352,7 +352,7 @@ class QuantizedEmbedding(QuantizedLayer, nn.Embedding):
             self.padding_idx,
             self.max_norm,
             self.norm_type,
-            self.scale_grad_by_freq,
+            self.scale_grad_by_freq,            
             self.sparse,
         )
 

@@ -167,8 +167,8 @@ def split_column_dataset(
     dataset,
     first_filename,
     second_filename,
-    tag_col=-1,
-):
+    tag_col=-1,):
+
     """
     Splits a single column tagged dataset into two files according to the amount of examples
     requested to be included in each file.

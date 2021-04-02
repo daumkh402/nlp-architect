@@ -70,6 +70,7 @@ class TransformerSequenceClassifier(TransformerBase):
         task_type="classification",
         metric_fn=accuracy,
         load_quantized=False,
+        wandb_project_name=None,
         *args,
         **kwargs,):
     
@@ -97,9 +98,10 @@ class TransformerSequenceClassifier(TransformerBase):
         self.metric_fn = metric_fn
         self.to(self.device, self.n_gpus)
 
-        ##
-        self.WANDB = wandb.init(project="mrpc-dist-test")
         # pdb.set_trace()
+        ##
+        self.WANDB = wandb.init(project=wandb_project_name)
+        # 
         self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
         ##
 
@@ -188,6 +190,7 @@ class TransformerSequenceClassifier(TransformerBase):
         Returns:
             TensorDataset:
         """
+        # pdb.set_trace()
         features = self._convert_examples_to_features(
             examples,
             max_seq_length,
@@ -303,7 +306,7 @@ class TransformerSequenceClassifier(TransformerBase):
 
             assert len(input_ids) == max_seq_length
             assert len(attention_mask) == max_seq_length
-            assert len(token_type_ids) == max_seq_length
+            assert len(token_type_ids) == max_seq_length       
 
             if include_labels:
                 if task_type == "classification":

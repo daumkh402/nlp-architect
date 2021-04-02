@@ -52,6 +52,7 @@ from nlp_architect.nn.torch.quantization import (
     QuantizedLinear,
 )
 
+import pdb
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class QuantizedBertIntermediate(BertIntermediate):
         if isinstance(config.hidden_act, str) or (
             sys.version_info[0] == 2 and isinstance(config.hidden_act, str)
         ):  # noqa: F821
-            self.intermediate_act_fn = ACT2FN[config.hidden_act]
+            self.intermediate_act_fn = ACT2FN[config.hidden_act]            # hidden_act : gelu
         else:
             self.intermediate_act_fn = config.hidden_act
 
@@ -350,8 +351,8 @@ class QuantizedBertModel(QuantizedBertPreTrainedModel, BertModel):
 
 
 class QuantizedBertForSequenceClassification(
-    QuantizedBertPreTrainedModel, BertForSequenceClassification
-):
+    QuantizedBertPreTrainedModel, BertForSequenceClassification):
+
     def __init__(self, config):
         # we only want BertForQuestionAnswering init to run to avoid unnecessary
         # initializations

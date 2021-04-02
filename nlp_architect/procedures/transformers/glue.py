@@ -27,7 +27,7 @@ from nlp_architect.procedures.procedure import Procedure
 from nlp_architect.procedures.registry import register_inference_cmd, register_train_cmd
 from nlp_architect.procedures.transformers.base import create_base_args, inference_args, train_args
 from nlp_architect.utils.io import prepare_output_path
-
+import pdb
 logger = logging.getLogger(__name__)
 
 
@@ -78,7 +78,15 @@ def add_glue_args(parser: argparse.ArgumentParser):
         help="The input data dir. Should contain dataset files to be parsed "
         + "by the dataloaders.",
     )
-
+    
+    parser.add_argument(
+    "--wandb_project_name",
+    default=None,
+    type=str,
+    required=True,
+    help="wandb_project_name "
+    )
+    # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
     parser.add_argument(
@@ -106,7 +114,8 @@ def do_training(args):
         output_path=args.output_dir,
         device=device,
         n_gpus=n_gpus,
-    )
+        wandb_project_name=args.wandb_project_name, )
+    
 
     train_batch_size = args.per_gpu_train_batch_size * max(1, n_gpus)
 
