@@ -86,6 +86,20 @@ def add_glue_args(parser: argparse.ArgumentParser):
     required=True,
     help="wandb_project_name "
     )
+
+    parser.add_argument(
+    "--wandb_run_name",
+    default=None,
+    type=str,
+    required=True,
+    help="wandb_run_name "
+    )
+
+    parser.add_argument(
+    "--wandb_off",
+    action="store_true",
+    help="wandb_off"
+    )
     # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
@@ -114,7 +128,10 @@ def do_training(args):
         output_path=args.output_dir,
         device=device,
         n_gpus=n_gpus,
-        wandb_project_name=args.wandb_project_name, )
+        wandb_project_name=args.wandb_project_name,
+        wandb_run_name=args.wandb_run_name,
+        wandb_off=args.wandb_off,
+        )
     
 
     train_batch_size = args.per_gpu_train_batch_size * max(1, n_gpus)

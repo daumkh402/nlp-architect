@@ -71,6 +71,8 @@ class TransformerSequenceClassifier(TransformerBase):
         metric_fn=accuracy,
         load_quantized=False,
         wandb_project_name=None,
+        wandb_run_name=None,
+        wandb_off=False,
         *args,
         **kwargs,):
     
@@ -100,9 +102,11 @@ class TransformerSequenceClassifier(TransformerBase):
 
         # pdb.set_trace()
         ##
-        self.WANDB = wandb.init(project=wandb_project_name)
+        self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
         # 
         self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
+        if wandb_off:
+            os.environ["WANDB_SILENT"] = "true"
         ##
 
 
@@ -171,6 +175,14 @@ class TransformerSequenceClassifier(TransformerBase):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
         
+        # pdb.set_trace()
+        if len(result.keys())==1:
+            return result[list(result.keys())[0]]
+        else:
+            if self.metric_fn.__name__ == "acc_and_f1":
+                return result['f1']
+            else:
+                return result['pearson']
         return result['f1']
 
     def convert_to_tensors(
@@ -308,6 +320,7 @@ class TransformerSequenceClassifier(TransformerBase):
             assert len(attention_mask) == max_seq_length
             assert len(token_type_ids) == max_seq_length       
 
+            # pdb.set_trace()
             if include_labels:
                 if task_type == "classification":
                     label_id = label_map[example.label]
