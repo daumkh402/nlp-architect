@@ -36,10 +36,12 @@ from nlp_architect.utils.metrics import accuracy
 ##
 import pdb
 import wandb
+import pickle
 ##
 
 
 logger = logging.getLogger(__name__)
+
 
 
 class TransformerSequenceClassifier(TransformerBase):
@@ -73,9 +75,16 @@ class TransformerSequenceClassifier(TransformerBase):
         wandb_project_name=None,
         wandb_run_name=None,
         wandb_off=False,
+        data_dir=None,
+        task_name=None,
         *args,
         **kwargs,):
     
+        ## 
+        self.data_dir = data_dir
+        self.task_name = task_name
+        ##
+
         assert model_type in self.MODEL_CLASS.keys(), "unsupported model type"
         self.labels = labels
         self.num_labels = len(labels)
@@ -108,7 +117,6 @@ class TransformerSequenceClassifier(TransformerBase):
         if wandb_off:
             os.environ["WANDB_SILENT"] = "true"
         ##
-
 
     def train(
         self,
@@ -179,17 +187,18 @@ class TransformerSequenceClassifier(TransformerBase):
         if len(result.keys())==1:
             return result[list(result.keys())[0]]
         else:
+            # pdb.set_trace()
             if self.metric_fn.__name__ == "acc_and_f1":
                 return result['f1']
             else:
                 return result['pearson']
-        return result['f1']
 
     def convert_to_tensors(
-        self,
+        self, 
         examples: List[SequenceClsInputExample],
         max_seq_length: int = 128,
-        include_labels: bool = True,) -> TensorDataset:
+        include_labels: bool = True,
+        isTrain=True,) -> TensorDataset:
     
         """
         Convert examples to tensor dataset
@@ -203,16 +212,28 @@ class TransformerSequenceClassifier(TransformerBase):
             TensorDataset:
         """
         # pdb.set_trace()
-        features = self._convert_examples_to_features(
-            examples,
-            max_seq_length,
-            self.tokenizer,
-            self.task_type,
-            include_labels,
-            pad_on_left=bool(self.model_type in ["xlnet"]),
-            pad_token=self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
-            pad_token_segment_id=4 if self.model_type in ["xlnet"] else 0,
-        )
+        if isTrain:
+            feature_file = os.path.join(self.data_dir, self.task_name + '_train_features.pickle')
+        else:
+            feature_file = os.path.join(self.data_dir, self.task_name + '_dev_features.pickle')
+
+        if os.path.isfile(feature_file):
+            with open(feature_file, 'rb') as ff:
+                features = pickle.load(ff)
+        else:
+            features = self._convert_examples_to_features(
+                examples,
+                max_seq_length,
+                self.tokenizer,
+                self.task_type,
+                include_labels,
+                pad_on_left=bool(self.model_type in ["xlnet"]),
+                pad_token=self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
+                pad_token_segment_id=4 if self.model_type in ["xlnet"] else 0,
+            )
+            with open(feature_file,'wb') as ff:
+                pickle.dump(features,ff)
+        
         # Convert to Tensors and build dataset
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)

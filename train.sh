@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 project_name=FPbert
-# "cola" "mrpc" "qnli" "rte" "sts-b"
-for task in  "sst-2" "wnli" "mnli" "qqp" 
+# "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
+for task in  "qqp" 
 do
     logging_steps=25;
     case $task in 
@@ -11,7 +11,7 @@ do
         sst-2) data="SST-2"; logging_steps=100;; qqp) data="QQP"; logging_steps=1000;; qnli) data="QNLI"; logging_steps=300;;
     esac
 
-    for i in 1 2 3
+    for i in 2 3
     do
         seed=$((i*1000))
         result_dir="../nlp_arch_results/${project_name}/${task}/${i}"

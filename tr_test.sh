@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=3
 project_name=FPbert
-task="mrpc"
+task="qqp"
 for i in 1
 do
-       logging_steps=500;
+       logging_steps=50;
        case $task in 
           cola) data="CoLA";; mrpc) data="MRPC";; sts-b) data="STS-B";;
           mnli) data="MNLI";;  rte) data="RTE";; wnli) data="WNLI";;

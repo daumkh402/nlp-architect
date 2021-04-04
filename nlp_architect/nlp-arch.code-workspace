@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../../anaconda3/lib/python3.7/site-packages/transformers"
+		},
+		{
+			"path": "../../glue_data"
 		}
 	],
 	"settings": {}

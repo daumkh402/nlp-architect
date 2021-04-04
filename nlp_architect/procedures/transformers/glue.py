@@ -116,6 +116,10 @@ def do_training(args):
     # Prepare GLUE task
     args.task_name = args.task_name.lower()
     task = get_glue_task(args.task_name, data_dir=args.data_dir)
+
+    ##
+    data_dir = args.data_dir
+    ##
     classifier = TransformerSequenceClassifier(
         model_type=args.model_type,
         model_name_or_path=args.model_name_or_path,
@@ -131,6 +135,8 @@ def do_training(args):
         wandb_project_name=args.wandb_project_name,
         wandb_run_name=args.wandb_run_name,
         wandb_off=args.wandb_off,
+        data_dir=data_dir,                          ##for saving and loading input features
+        task_name=args.task_name
         )
     
 
@@ -138,8 +144,8 @@ def do_training(args):
 
     train_ex = task.get_train_examples()
     dev_ex = task.get_dev_examples()
-    train_dataset = classifier.convert_to_tensors(train_ex, args.max_seq_length)
-    dev_dataset = classifier.convert_to_tensors(dev_ex, args.max_seq_length)
+    train_dataset = classifier.convert_to_tensors(train_ex, args.max_seq_length, isTrain=True)
+    dev_dataset = classifier.convert_to_tensors(dev_ex, args.max_seq_length, isTrain=False)
     train_sampler = RandomSampler(train_dataset)
     dev_sampler = SequentialSampler(dev_dataset)
     train_dl = DataLoader(train_dataset, sampler=train_sampler, batch_size=train_batch_size)
