@@ -228,6 +228,7 @@ class QuantizedBertPreTrainedModel(BertPreTrainedModel):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *args, from_8bit=False, **kwargs):
         """load trained model from 8bit model"""
+        # pdb.set_trace()
         if not from_8bit:
             return super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
         config = kwargs.pop("config", None)
@@ -367,6 +368,32 @@ class QuantizedBertForSequenceClassification(
 
         self.apply(self.init_weights)
 
+    def check_quantize(self, check_weight = False, check_feature = False):
+        print("\n\n")
+        if check_weight:
+            print("_________________Check Weight quantization____________________")
+            # print(comment)
+            
+            for name, module in self.named_modules():   
+                # pdb.set_trace()
+                if 'key' in name or 'query' in name or 'value' in name or 'dense' in name : #or '_embeddings' in name:  #
+                    # pdb.set_trace()
+                    print("name: ", name)
+                    print("size : ", module.weight.size())
+                    print("---------FP_weight---------")
+                    print(module.weight)
+                    print("\n\n")
+                    print("---------Q_weight---------")
+                    print(module.Q_weight)
+                    print("torch.unique(module.Q_weight)")
+                    print(torch.unique(module.Q_weight))
+                    print("number of unique Q_weights: ", len(torch.unique(module.Q_weight)))
+                    print("---------Q_out---------")
+                    print(module.Q_out)
+                    if module.Q_out is not None:
+                        print("torch.unique(module.Q_out)")
+                        print(torch.unique(module.Q_out))
+                        print("number of unique Q_out: ", len(torch.unique(module.Q_out)))
 
 class QuantizedBertForQuestionAnswering(QuantizedBertPreTrainedModel, BertForQuestionAnswering):
     def __init__(self, config):

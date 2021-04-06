@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=3
 project_name=FPbert
-task="qqp"
+task="rte"
 for i in 1
 do
        logging_steps=50;
@@ -22,7 +22,7 @@ do
        nlp-train transformer_glue \
               --task_name ${task} \
               --model_name_or_path bert-base-uncased \
-              --model_type bert \
+              --model_type quant_bert \
               --output_dir ${result_dir} \
               --evaluate_during_training \
               --data_dir ../glue_data/${data} \
@@ -34,5 +34,7 @@ do
               --wandb_off \
               --num_train_epochs 1 \
               --logging_steps $logging_steps \
+              --per_gpu_train_batch_size 8 \
+              --per_gpu_eval_batch_size 8 \
               --save_steps 0   
 done 

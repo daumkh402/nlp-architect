@@ -28,7 +28,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from nlp_architect.common import Config
-
+import pdb
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +82,9 @@ class FakeLinearQuantizationWithSTE(torch.autograd.Function):
 
 class QuantizationMode(Enum):
     NONE = auto()
-    DYNAMIC = auto()
     EMA = auto()
+    DYNAMIC = auto()
+    
 
 
 _fake_quantize = FakeLinearQuantizationWithSTE.apply
@@ -100,7 +101,8 @@ class QuantizedLayer(ABC):
             raise ValueError(f"weight_bits={weight_bits} must be higher than 1 ")
         super().__init__(*args, **kwargs)
         self.weight_bits = weight_bits
-        self.mode = QuantizationMode[mode.upper()]
+        #self.mode = QuantizationMode[mode.upper()]
+        self.mode = QuantizationMode["DYNAMIC"]
         self.start_step = start_step
         self.register_buffer("_step", torch.zeros(1))
         # buffers for inference
@@ -110,7 +112,19 @@ class QuantizedLayer(ABC):
         self.mode_8bit = False
         self._imported_from_quantized = False
         # register saving hook
+        # pdb.set_trace()
         self._register_state_dict_hook(self._state_dict_hook)
+
+        self.quant_check=False
+        if self.quant_check:
+            self.register_buffer("Q_weight",None)
+            self.register_buffer("Q_out",None)
+        # self.register_buffer("input_scale", None)
+        # self.register_buffer("output_scale",None)
+        # self.register_buffer("weight_scale",None)
+
+
+        ##
 
     def forward(self, input):
         if self.mode == QuantizationMode.NONE:
@@ -140,6 +154,7 @@ class QuantizedLayer(ABC):
 
     @property
     def fake_quantized_weight(self):
+        # pdb.set_trace()
         return _fake_quantize(self.weight, self.weight_scale, self.weight_bits)
 
     @property
@@ -175,8 +190,8 @@ class QuantizedLayer(ABC):
         self.quantized_weight = quantize(self.weight, self.weight_scale, self.weight_bits)
 
     def _load_from_state_dict(
-        self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
-    ):
+        self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+    
         """check if model is loaded from quantized checkpoint or regular checkpoint"""
         super()._load_from_state_dict(
             state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -241,6 +256,11 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
             self.register_buffer("_quantized_bias", None)
             self.register_buffer("bias_scale", None)
 
+###################################################################
+        # if kwargs.get("check_feature",True):
+        #     self.register_buffer()
+
+##################################################################
     def training_quantized_forward(self, input):
         """fake quantized forward, fake quantizes weights and activations,
         learn quantization ranges if quantization mode is EMA.
@@ -248,16 +268,28 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         assert self.training, "should only be called when training"
         if self.mode == QuantizationMode.EMA:
             self._update_ema(self.input_thresh, input.detach())
-        input_scale = self._get_input_scale(input)
+        input_scale = self._get_input_scale(input) 
+
+
+        Q_weight = self.fake_quantized_weight   
         out = F.linear(
             _fake_quantize(input, input_scale, self.activation_bits),
-            self.fake_quantized_weight,
+            Q_weight,
             self.bias,
         )
+        # pdb.set_trace()
+
+
         if self.requantize_output:                          
             if self.mode == QuantizationMode.EMA:
                 self._update_ema(self.output_thresh, out.detach())
             out = _fake_quantize(out, self._get_output_scale(out), self.activation_bits)
+            if self.quant_check:
+                self.Q_out = out
+
+        if self.quant_check:
+            self.Q_weight = Q_weight 
+        
         return out
 
     def inference_quantized_forward(self, input):
@@ -268,7 +300,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         self.bias_scale = self.weight_scale * input_scale
         quantized_input = quantize(input, input_scale, self.activation_bits)
         out = F.linear(quantized_input, self.quantized_weight, self.quantized_bias)
-        # TODO(ofir) fuse the operation of requantization with dequantiz
+        # TODO(ofir) fuse the operation of requantization with dequantize
         out = dequantize(out, self.bias_scale)
         if self.requantize_output:
             output_scale = self._get_output_scale(out)
@@ -286,6 +318,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         """hook to be registered to module when exporting the model to 8bit,\
              can be overrided to customize to layer behaviour"""
         super()._state_dict_hook(module, state_dict, prefix, local_metadata)
+        # pdb.set_trace()
         if module.mode_8bit:
             if module.mode == QuantizationMode.EMA:
                 state_dict.pop(prefix + "bias", None)
@@ -346,15 +379,29 @@ class QuantizedEmbedding(QuantizedLayer, nn.Embedding):
     def training_quantized_forward(self, input):
         """Return quantized embeddings"""
         assert self.training, "should only be called when training"
-        return F.embedding(
-            input,
-            self.fake_quantized_weight,
-            self.padding_idx,
-            self.max_norm,
-            self.norm_type,
-            self.scale_grad_by_freq,            
-            self.sparse,
-        )
+
+        if self.quant_check:
+            self.Q_weight = self.fake_quantized_weight 
+            self.Q_out=F.embedding(
+                input,
+                self.Q_weight,
+                self.padding_idx,
+                self.max_norm,
+                self.norm_type,
+                self.scale_grad_by_freq,            
+                self.sparse,
+            )
+            return self.Q_out
+        else:
+            return F.embedding(
+                input,
+                self.fake_quantized_weight,
+                self.padding_idx,
+                self.max_norm,
+                self.norm_type,
+                self.scale_grad_by_freq,            
+                self.sparse,
+            )
 
     def inference_quantized_forward(self, input):
         """forward to be used during inference"""

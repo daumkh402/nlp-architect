@@ -146,6 +146,7 @@ def do_training(args):
     dev_ex = task.get_dev_examples()
     train_dataset = classifier.convert_to_tensors(train_ex, args.max_seq_length, isTrain=True)
     dev_dataset = classifier.convert_to_tensors(dev_ex, args.max_seq_length, isTrain=False)
+
     train_sampler = RandomSampler(train_dataset)
     dev_sampler = SequentialSampler(dev_dataset)
     train_dl = DataLoader(train_dataset, sampler=train_sampler, batch_size=train_batch_size)

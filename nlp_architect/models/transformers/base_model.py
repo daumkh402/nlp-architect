@@ -324,15 +324,26 @@ class TransformerBase(TrainableModel):
 
         pure_training_time = 0
         eval_time = 0
+        # pdb.set_trace()
         for epoch, _ in enumerate(train_iterator):
             print("****** Epoch: " + str(epoch))
             epoch_iterator = tqdm(data_set, desc="Train iteration")       
             for step, batch in enumerate(epoch_iterator):
-                pure_tr_time_start = time.time()           
+                pure_tr_time_start = time.time() 
+                # pdb.set_trace()          
                 self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = self._batch_mapper(batch)
+                
+                
                 outputs = self.model(**inputs)
+
+                # if global_step == 1:
+                    
+                #     self.model.check_quantize(check_weight=True)
+                #     self.model.check_quantize(check_feature=True)
+                #     # pdb.set_trace()
+
                 loss = outputs[0]  # get loss
 
                 if self.n_gpus > 1:
@@ -370,14 +381,16 @@ class TransformerBase(TrainableModel):
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
                         logging_loss = tr_loss
 
-                        wandb.log({"eval_loss":eval_loss})    
+                        if not self.wandb_off:
+                            wandb.log({"eval_loss":eval_loss})    
                     if save_steps > 0 and global_step % save_steps == 0:
                         # Save model checkpoint
                         self.save_model_checkpoint(
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
                 ##
-                wandb.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                if not self.wandb_off:
+                    wandb.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
 
                 ##
                 if 0 < max_steps < global_step:

@@ -110,12 +110,13 @@ class TransformerSequenceClassifier(TransformerBase):
         self.to(self.device, self.n_gpus)
 
         # pdb.set_trace()
-        ##
-        self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
+        
+        self.wandb_off=wandb_off
+        if not wandb_off:
+            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
         # 
-        self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
-        if wandb_off:
-            os.environ["WANDB_SILENT"] = "true"
+            self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
+
         ##
 
     def train(
@@ -170,6 +171,8 @@ class TransformerSequenceClassifier(TransformerBase):
             logits: model logits
             label_ids: truth label ids
         """
+        # pdb.set_trace()
+
         preds = self._postprocess_logits(logits)
         label_ids = label_ids.numpy()
         result = self.metric_fn(preds, label_ids)
@@ -180,18 +183,34 @@ class TransformerSequenceClassifier(TransformerBase):
         with open(output_eval_file, "w") as writer:
             logger.info("***** Evaluation results *****")
             for key in sorted(result.keys()):
+                # pdb.set_trace()
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
         
         # pdb.set_trace()
-        if len(result.keys())==1:
-            return result[list(result.keys())[0]]
-        else:
-            # pdb.set_trace()
-            if self.metric_fn.__name__ == "acc_and_f1":
-                return result['f1']
-            else:
-                return result['pearson']
+        if self.task_name in ['sst-2','qnli', 'rte', 'wnli',  'mnli', 'mnli-mm']:
+            return result['acc']
+
+        if self.task_name == 'cola':
+            return result['mcc']
+
+        if self.task_name == 'sts-b':
+            return result['pearson'] 
+
+        if self.task_name == 'mrpc':
+            return result['f1']
+
+        if self.task_name == 'qqp':
+            return result['f1']   
+
+        # if len(result.keys())==1:
+        #     return result[list(result.keys())[0]]
+        # else:
+        #     # pdb.set_trace()
+        #     if self.metric_fn.__name__ == "acc_and_f1":
+        #         return result['f1']
+        #     else:
+        #         return result['pearson']
 
     def convert_to_tensors(
         self, 
@@ -361,3 +380,8 @@ class TransformerSequenceClassifier(TransformerBase):
                 )
             )
         return features
+
+
+
+
+
