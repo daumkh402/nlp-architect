@@ -1,6 +1,6 @@
-export CUDA_VISIBLE_DEVICES=3
+export CUDA_VISIBLE_DEVICES=2
 project_name=FPbert
-task="rte"
+task="sts-b"
 for i in 1
 do
        logging_steps=50;
@@ -11,7 +11,7 @@ do
        esac
 
        seed=$((i*1000))
-       result_dir="../nlp_arch_results/${project_name}/test/${i}"
+       result_dir="../nlp_arch_results/${project_name}/test/"
        if [ ! -d ${result_dir} ]
               then
               echo "${result_dir} does not exist"
@@ -36,5 +36,6 @@ do
               --logging_steps $logging_steps \
               --per_gpu_train_batch_size 8 \
               --per_gpu_eval_batch_size 8 \
+              --warmup_steps 50 \ 
               --save_steps 0   
 done 

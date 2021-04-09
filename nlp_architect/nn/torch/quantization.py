@@ -102,7 +102,7 @@ class QuantizedLayer(ABC):
         super().__init__(*args, **kwargs)
         self.weight_bits = weight_bits
         #self.mode = QuantizationMode[mode.upper()]
-        self.mode = QuantizationMode["DYNAMIC"]
+        self.mode = QuantizationMode[mode.upper()]
         self.start_step = start_step
         self.register_buffer("_step", torch.zeros(1))
         # buffers for inference
