@@ -68,8 +68,13 @@ def quantized_linear_setup(config, name, *args, **kwargs):
     """
     Get QuantizedLinear layer according to config params
     """
+    
     try:
+        config.output_attentions=True
+        # pdb.set_trace()
+        ##
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
+
         linear = QuantizedLinear.from_config(*args, **kwargs, config=quant_config)
     except AttributeError:
         linear = nn.Linear(*args, **kwargs)
@@ -81,6 +86,11 @@ def quantized_embedding_setup(config, name, *args, **kwargs):
     Get QuantizedEmbedding layer according to config params
     """
     try:
+       ##
+        config.output_attentions = True
+        # pdb.set_trace()
+        ##
+
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
         embedding = QuantizedEmbedding.from_config(*args, **kwargs, config=quant_config)
     except AttributeError:

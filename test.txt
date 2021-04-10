@@ -1,0 +1,5 @@
+Script started on 2021-04-10 19:36:56+0900
+(base) imza@watson:~/nlp-architect$ . tr_test.sh[7Pclear. tr_test.sh[7Pclear. tr_test.sh[7Pclear. tr_test.sh[7Pclear[K[K[K[K[Kexit
+exit
+
+Script done on 2021-04-10 19:37:12+0900

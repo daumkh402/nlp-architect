@@ -115,16 +115,17 @@ class QuantizedLayer(ABC):
         # pdb.set_trace()
         self._register_state_dict_hook(self._state_dict_hook)
 
-        self.quant_check=False
-        if self.quant_check:
-            self.register_buffer("Q_weight",None)
-            self.register_buffer("Q_out",None)
-        # self.register_buffer("input_scale", None)
-        # self.register_buffer("output_scale",None)
-        # self.register_buffer("weight_scale",None)
+        #######################################################
+        # self.quant_check=False
+        # if self.quant_check:
+        #     self.register_buffer("Q_weight",None)
+        #     self.register_buffer("Q_out",None)
+        # # self.register_buffer("input_scale", None)
+        # # self.register_buffer("output_scale",None)
+        # # self.register_buffer("weight_scale",None)
 
 
-        ##
+        #######################################################
 
     def forward(self, input):
         if self.mode == QuantizationMode.NONE:
@@ -279,16 +280,15 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         )
         # pdb.set_trace()
 
-
         if self.requantize_output:                          
             if self.mode == QuantizationMode.EMA:
                 self._update_ema(self.output_thresh, out.detach())
             out = _fake_quantize(out, self._get_output_scale(out), self.activation_bits)
-            if self.quant_check:
-                self.Q_out = out
+            # if self.quant_check:
+            #     self.Q_out = out
 
-        if self.quant_check:
-            self.Q_weight = Q_weight 
+        # if self.quant_check:
+        #     self.Q_weight = Q_weight 
         
         return out
 
@@ -380,28 +380,28 @@ class QuantizedEmbedding(QuantizedLayer, nn.Embedding):
         """Return quantized embeddings"""
         assert self.training, "should only be called when training"
 
-        if self.quant_check:
-            self.Q_weight = self.fake_quantized_weight 
-            self.Q_out=F.embedding(
-                input,
-                self.Q_weight,
-                self.padding_idx,
-                self.max_norm,
-                self.norm_type,
-                self.scale_grad_by_freq,            
-                self.sparse,
-            )
-            return self.Q_out
-        else:
-            return F.embedding(
-                input,
-                self.fake_quantized_weight,
-                self.padding_idx,
-                self.max_norm,
-                self.norm_type,
-                self.scale_grad_by_freq,            
-                self.sparse,
-            )
+        # if self.quant_check:
+        #     self.Q_weight = self.fake_quantized_weight 
+        #     self.Q_out=F.embedding(
+        #         input,
+        #         self.Q_weight,
+        #         self.padding_idx,
+        #         self.max_norm,
+        #         self.norm_type,
+        #         self.scale_grad_by_freq,            
+        #         self.sparse,
+        #     )
+        #     return self.Q_out
+        # else:
+        return F.embedding(
+            input,
+            self.fake_quantized_weight,
+            self.padding_idx,
+            self.max_norm,
+            self.norm_type,
+            self.scale_grad_by_freq,            
+            self.sparse,
+        )
 
     def inference_quantized_forward(self, input):
         """forward to be used during inference"""

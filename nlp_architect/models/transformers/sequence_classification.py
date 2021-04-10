@@ -37,10 +37,13 @@ from nlp_architect.utils.metrics import accuracy
 import pdb
 import wandb
 import pickle
+from nlp_architect.nn.torch.quantization import QuantizedLayer
+from torch.utils.tensorboard import SummaryWriter
 ##
 
 
 logger = logging.getLogger(__name__)
+
 
 
 
@@ -72,9 +75,6 @@ class TransformerSequenceClassifier(TransformerBase):
         task_type="classification",
         metric_fn=accuracy,
         load_quantized=False,
-        wandb_project_name=None,
-        wandb_run_name=None,
-        wandb_off=False,
         data_dir=None,
         task_name=None,
         *args,
@@ -109,15 +109,16 @@ class TransformerSequenceClassifier(TransformerBase):
         self.metric_fn = metric_fn
         self.to(self.device, self.n_gpus)
 
-        # pdb.set_trace()
-        
-        self.wandb_off=wandb_off
-        if not wandb_off:
-            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
-        # 
-            self.WANDB.watch(self.model, log_freq = 50) # log_freq default 100
+        ########################################################################################
 
-        ##
+  
+
+
+
+
+
+
+        ########################################################################################
 
     def train(
         self,

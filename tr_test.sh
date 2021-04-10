@@ -1,9 +1,9 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=3
 project_name=FPbert
-task="sts-b"
+task="rte"
 for i in 1
 do
-       logging_steps=50;
+       logging_steps=1;
        case $task in 
           cola) data="CoLA";; mrpc) data="MRPC";; sts-b) data="STS-B";;
           mnli) data="MNLI";;  rte) data="RTE";; wnli) data="WNLI";;
@@ -11,14 +11,13 @@ do
        esac
 
        seed=$((i*1000))
-       result_dir="../nlp_arch_results/${project_name}/test/"
+       result_dir="../nlp_arch_results/${project_name}/test"
        if [ ! -d ${result_dir} ]
               then
               echo "${result_dir} does not exist"
               mkdir -p ${result_dir}
        fi
 
-       logname="${result_dir}/${project_name}_${task}_${i}.txt"
        nlp-train transformer_glue \
               --task_name ${task} \
               --model_name_or_path bert-base-uncased \
@@ -28,14 +27,15 @@ do
               --data_dir ../glue_data/${data} \
               --do_lower_case \
               --overwrite_output_dir \
-              --seed ${seed} \
+              --seed $RANDOM \
+              --num_train_epochs 1 \
+              --logging_steps $logging_steps \
               --wandb_project_name ${project_name} \
               --wandb_run_name "${task}_test" \
               --wandb_off \
-              --num_train_epochs 1 \
-              --logging_steps $logging_steps \
-              --per_gpu_train_batch_size 8 \
-              --per_gpu_eval_batch_size 8 \
-              --warmup_steps 50 \ 
-              --save_steps 0   
+              --warmup_steps 0 \
+              --save_steps 0 \
+              --per_gpu_train_batch_size 32 \
+              --per_gpu_eval_batch_size 32 \
+              --writer_dir "${result_dir}/tensorboard" 
 done 

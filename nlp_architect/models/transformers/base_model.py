@@ -36,9 +36,14 @@ from transformers import (
 
 from nlp_architect.models import TrainableModel
 from nlp_architect.models.transformers.quantized_bert import QuantizedBertConfig
+
 import pdb
 import wandb
 import time
+from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
+import seaborn
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +61,156 @@ def get_models(models: List[str]):
         return [m for m in ALL_MODELS if m.split("-")[0] in models]
     return ALL_MODELS
 
+
+class Recorder():
+    def __init__(self, writer_dir = '', tokenizer = None):
+
+        self.hook_list = []
+        self.writer = SummaryWriter(writer_dir)
+        self.step_count = 0
+        self.model = None
+        self.tokenizer = tokenizer
+
+        self.train_task = True
+        self.prefix = ['Eval', 'Train']
+        self.attentions = {}
+
+        self.input_sequence = None
+
+
+    def register(self, model, dump_interval):
+
+        self.model = model
+
+        for name, layer in model.named_modules():
+            # pdb.set_trace()
+
+            if name == 'bert':
+                handle = layer.register_forward_pre_hook(self.Input_hook(name, dump_interval))
+                self.hook_list.append(handle)
+
+            if 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
+                handle = layer.register_forward_hook(self.QuantizeLayer_hook(name, dump_interval))
+                self.hook_list.append(handle)
+            
+            if name[-14:] == 'attention.self':
+                handle = layer.register_forward_hook(self.Attention_hook(name, dump_interval))
+                self.hook_list.append(handle)   
+                
+
+    def convert_tensor_to_string(self, input):    
+        input_strings = []
+        for sequence in input:
+            seq = []
+            for word_id in sequence:   
+                if word_id == 0:
+                    break          
+                seq.append(self.tokenizer.ids_to_tokens[word_id.item()])
+            input_strings.append(seq)
+        
+        return input_strings
+
+    
+    def draw(self,data, x, y, ax):
+        seaborn.heatmap(data, 
+                        xticklabels=x, square=True, yticklabels=y,  
+                        cbar=True, ax=ax)
+
+
+    def Input_hook(self, layer_name, dump_interval):
+        def hook(module, input):
+        
+            if self.train_task != self.model.training :
+                return
+
+            if (self.step_count+1) % dump_interval == 0:
+
+                inp = input[0] if isinstance(input, tuple) else input
+                self.input_sequence = self.convert_tensor_to_string(inp) 
+                # pdb.set_trace()
+                # self.writer.add_histogram(prefix + layer_name + '_in', 
+                #                           inp.clone().cpu().data.numpy(), 
+                #                           self.step_count)
+    
+        return hook
+
+    
+    def QuantizeLayer_hook(self, layer_name, dump_interval):    
+        def hook(module, input, output):
+
+            if self.train_task != self.model.training :
+                return
+            
+            # pdb.set_trace()
+
+            prefix = self.prefix[self.model.training]
+
+            if (self.step_count+1) % dump_interval == 0:
+                self.writer.add_histogram(prefix + layer_name + '_out', 
+                                          output.clone().cpu().data.numpy(), 
+                                          self.step_count)
+
+                inp = input[0] if isinstance(input, tuple) else input
+
+                self.writer.add_histogram(prefix + layer_name + '_in', 
+                                          inp.clone().cpu().data.numpy(), 
+                                          self.step_count) 
+
+                self.writer.add_histogram(prefix + layer_name + '_weight', 
+                                          module.weight.clone().cpu().data.numpy(), 
+                                          self.step_count) 
+
+                self.writer.add_scalar(prefix + layer_name + '_input_thesh', 
+                                       module.input_thresh.clone().cpu().data.numpy(),
+                                       self.step_count)
+                                    
+                
+                self.writer.add_scalar(prefix  + layer_name + '_out_thesh', 
+                                       module.input_thresh.clone().cpu().data.numpy(),
+                                       self.step_count)     
+        return hook
+    
+    
+    def Attention_hook(self, layer_name, dump_interval):
+        def hook(module, input, output) :
+            if self.train_task != self.model.training :
+                return
+
+            # prefix = self.prefix[self.model.training]
+            
+            # if (self.step_count+1) % dump_interval == 0:
+            # # attention weight  
+            #     if self.model.config.output_attentions:       #self attention layer
+                    
+            #         # output[0] : context vector of size (bsz, max_seq_length, hidden_size)
+            #         # output[1] : attention for all heads (bsz, num_heads, max_seq_length, max_seq_length)
+
+            #         #for Testing 
+            #         # for i in range(self.model.config.num_attnetion_heads)
+            #         # self.writer.add_scalar(prefix + layer_name + '_head' + str(i), output[1][0][i])
+
+            #         # heatmap = axes.pcolor(output[1][0][0].clone().cpu().detach(), cmap=plt.cm.Blues)
+            #         # axes.set_xticklabels(self.input_sequence[0], minor=False)
+            #         # target words -> row labels
+            #         # axes.set_yticklabels(self.input_sequence[0], minor=False)
+
+            #         plt.title('head')
+            #         fig = plt.figure(figsize=(100,100))
+            #         axes = fig.add_subplot(111)
+            #         # plt.pcolor(output[1][0][0].clone().cpu().detach(), self.input_sequence[0], self.input_sequence[0])
+            #         seq_len = len(self.input_sequence[0])
+            #         plt.tight_layout()
+            #         self.draw(data = output[1][0][0][:seq_len][:seq_len].clone().cpu().detach(), x=self.input_sequence[0], y=self.input_sequence[0], ax = axes)
+            #         plt.savefig('test2.png')
+            #         # pdb.set_trace()
+
+        return hook
+
+
+    def remove(self):
+        for handle in self.hook_list:
+            handle.remove()
+        self.writer.close()
 
 class TransformerBase(TrainableModel):
     """
@@ -81,7 +236,11 @@ class TransformerBase(TrainableModel):
         do_lower_case=False,
         output_path=None,
         device="cpu",
-        n_gpus=0,):
+        n_gpus=0,
+        wandb_project_name=None,
+        wandb_run_name=None,
+        wandb_off=False,
+        writer_dir=None):
     
         """
         Transformers base model (for working with pytorch-transformers models)
@@ -113,6 +272,7 @@ class TransformerBase(TrainableModel):
 
         self.model_class = None
         config_class, tokenizer_class = self.MODEL_CONFIGURATIONS[model_type]
+        # pdb.set_trace()
         self.config_class = config_class
         self.tokenizer_class = tokenizer_class
 
@@ -127,9 +287,18 @@ class TransformerBase(TrainableModel):
 
         self._optimizer = None
         self._scheduler = None
-
         self.training_args = None
 
+        #############################################################################
+        self.wandb_off=wandb_off
+        if not wandb_off:
+            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
+            self.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
+
+        # pdb.set_trace()
+        self.recorder = Recorder(writer_dir=writer_dir, tokenizer=self.tokenizer)
+
+        #############################################################################
     def to(self, device="cpu", n_gpus=0):
         if self.model is not None:
             self.model.to(device)
@@ -324,14 +493,22 @@ class TransformerBase(TrainableModel):
 
         pure_training_time = 0
         eval_time = 0
-        # pdb.set_trace()
+
+        # # pdb.set_trace()
+        # for name,layer in self.model.named_modules():
+        #     pdb.set_trace()
+
+        self.recorder.register(model=self.model, dump_interval=logging_steps)
+
+        #
         for epoch, _ in enumerate(train_iterator):
             print("****** Epoch: " + str(epoch))
             epoch_iterator = tqdm(data_set, desc="Train iteration")       
             for step, batch in enumerate(epoch_iterator):
                 pure_tr_time_start = time.time() 
-                # pdb.set_trace()          
                 self.model.train()
+                # pdb.set_trace()          
+
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = self._batch_mapper(batch)
                 
@@ -361,9 +538,12 @@ class TransformerBase(TrainableModel):
                     self.model.zero_grad()
                     global_step += 1
 
+                    ################################################################
                     pure_tr_time_end = time.time()
                     pure_training_time += pure_tr_time_end - pure_tr_time_start
 
+                    self.recorder.step_count += 1
+                    ################################################################
                     if logging_steps > 0 and global_step % logging_steps == 0:
                         # Log metrics and run evaluation on dev/test
                         eval_time_start = time.time()
@@ -375,14 +555,20 @@ class TransformerBase(TrainableModel):
                             best_result_file,
                             save_path=best_model_path,
                         )
+
+                        ############################################################
                         eval_time_end = time.time()
                         eval_time += eval_time_end - eval_time_start
+                        if not self.wandb_off:
+                            wandb.log({"eval_loss":eval_loss})   
+
+                        pdb.set_trace()
+                        ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
                         logging_loss = tr_loss
 
-                        if not self.wandb_off:
-                            wandb.log({"eval_loss":eval_loss})    
+ 
                     if save_steps > 0 and global_step % save_steps == 0:
                         # Save model checkpoint
                         self.save_model_checkpoint(
@@ -399,6 +585,8 @@ class TransformerBase(TrainableModel):
             if 0 < max_steps < global_step:
                 train_iterator.close()
                 break
+
+
 
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
@@ -420,6 +608,8 @@ class TransformerBase(TrainableModel):
             best_result_file,
             save_path=best_model_path,
         )
+
+        self.recorder.remove()
 
     def update_best_model(
         self,

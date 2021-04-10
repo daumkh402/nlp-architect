@@ -40,6 +40,7 @@ class TransformerGlueTrain(Procedure):
         add_glue_args(parser)
         create_base_args(parser, model_types=TransformerSequenceClassifier.MODEL_CLASS.keys())
         train_args(parser, models_family=TransformerSequenceClassifier.MODEL_CLASS.keys())
+        # pdb.set_trace()
 
     @staticmethod
     def run_procedure(args):
@@ -100,6 +101,14 @@ def add_glue_args(parser: argparse.ArgumentParser):
     action="store_true",
     help="wandb_off"
     )
+
+    parser.add_argument(
+        "--writer_dir",
+        default = None,
+        type = str,
+        required=True,
+        help = "tensorboard save dir"
+    )
     # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
@@ -109,6 +118,7 @@ def add_glue_inference_args(parser: argparse.ArgumentParser):
 
 
 def do_training(args):
+    # pdb.set_trace()
     prepare_output_path(args.output_dir, args.overwrite_output_dir)
     device, n_gpus = setup_backend(args.no_cuda)
     # Set seed
@@ -132,11 +142,12 @@ def do_training(args):
         output_path=args.output_dir,
         device=device,
         n_gpus=n_gpus,
+        data_dir=data_dir,                          ##for saving and loading input features
         wandb_project_name=args.wandb_project_name,
         wandb_run_name=args.wandb_run_name,
         wandb_off=args.wandb_off,
-        data_dir=data_dir,                          ##for saving and loading input features
-        task_name=args.task_name
+        task_name=args.task_name,
+        writer_dir=args.writer_dir
         )
     
 
@@ -144,6 +155,8 @@ def do_training(args):
 
     train_ex = task.get_train_examples()
     dev_ex = task.get_dev_examples()
+
+    # pdb.set_trace()
     train_dataset = classifier.convert_to_tensors(train_ex, args.max_seq_length, isTrain=True)
     dev_dataset = classifier.convert_to_tensors(dev_ex, args.max_seq_length, isTrain=False)
 
