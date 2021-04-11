@@ -90,9 +90,9 @@ class Recorder():
                 self.hook_list.append(handle)
 
             if 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
-                handle = layer.register_forward_hook(self.QuantizeLayer_hook(name, dump_interval))
+                handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
                 self.hook_list.append(handle)
-            
+
             if name[-14:] == 'attention.self':
                 handle = layer.register_forward_hook(self.Attention_hook(name, dump_interval))
                 self.hook_list.append(handle)   
@@ -134,8 +134,8 @@ class Recorder():
     
         return hook
 
-    
-    def QuantizeLayer_hook(self, layer_name, dump_interval):    
+
+    def QLayer_hook(self, layer_name, dump_interval):    
         def hook(module, input, output):
 
             if self.train_task != self.model.training :
@@ -145,29 +145,51 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
+            self.writer.add_scalar(prefix  + layer_name + 'weight_scale', 
+                                   module._weight_scale.clone().cpu().data.numpy(),
+                                   self.step_count)  
+
+            self.writer.add_scalar(prefix  + layer_name + 'weight_mean', 
+                                   torch.mean(module.weight).clone().cpu().data.numpy(),
+                                   self.step_count) 
+
+            self.writer.add_scalar(prefix  + layer_name + 'weight_std', 
+                                   torch.std(module.weight).clone().cpu().data.numpy(),
+                                   self.step_count) 
+             
+
+            if 'embeddings' not in layer_name: # for linear layer
+                self.writer.add_scalar(prefix + layer_name + '_input_thresh', 
+                                        module.input_thresh.clone().cpu().data.numpy(),
+                                        self.step_count)
+                                    
+                self.writer.add_scalar(prefix  + layer_name + '_out_thresh', 
+                                        module.input_thresh.clone().cpu().data.numpy(),
+                                        self.step_count) 
+
+            pdb.set_trace()
+
+            self.writer.add_scalar(prefix  + layer_name + 'weight_mean', 
+                                   torch.mean(module.weight.clone()).cpu().data.numpy(),
+                                   self.step_count) 
+
             if (self.step_count+1) % dump_interval == 0:
-                self.writer.add_histogram(prefix + layer_name + '_out', 
-                                          output.clone().cpu().data.numpy(), 
-                                          self.step_count)
-
-                inp = input[0] if isinstance(input, tuple) else input
-
-                self.writer.add_histogram(prefix + layer_name + '_in', 
-                                          inp.clone().cpu().data.numpy(), 
-                                          self.step_count) 
 
                 self.writer.add_histogram(prefix + layer_name + '_weight', 
                                           module.weight.clone().cpu().data.numpy(), 
                                           self.step_count) 
 
-                self.writer.add_scalar(prefix + layer_name + '_input_thesh', 
-                                       module.input_thresh.clone().cpu().data.numpy(),
-                                       self.step_count)
-                                    
-                
-                self.writer.add_scalar(prefix  + layer_name + '_out_thesh', 
-                                       module.input_thresh.clone().cpu().data.numpy(),
-                                       self.step_count)     
+                if 'embeddings' not in layer_name: # for linear layer
+                    self.writer.add_histogram(prefix + layer_name + '_out', 
+                                            output.clone().cpu().data.numpy(), 
+                                            self.step_count)
+
+                    inp = input[0] if isinstance(input, tuple) else input
+
+                    self.writer.add_histogram(prefix + layer_name + '_in', 
+                                            inp.clone().cpu().data.numpy(), 
+                                            self.step_count) 
+
         return hook
     
     

@@ -3,7 +3,7 @@ project_name=FPbert
 task="rte"
 for i in 1
 do
-       logging_steps=1;
+       logging_steps=50;
        case $task in 
           cola) data="CoLA";; mrpc) data="MRPC";; sts-b) data="STS-B";;
           mnli) data="MNLI";;  rte) data="RTE";; wnli) data="WNLI";;
