@@ -101,7 +101,6 @@ class QuantizedLayer(ABC):
             raise ValueError(f"weight_bits={weight_bits} must be higher than 1 ")
         super().__init__(*args, **kwargs)
         self.weight_bits = weight_bits
-        #self.mode = QuantizationMode[mode.upper()]
         self.mode = QuantizationMode[mode.upper()]
         self.start_step = start_step
         self.register_buffer("_step", torch.zeros(1))
@@ -112,20 +111,7 @@ class QuantizedLayer(ABC):
         self.mode_8bit = False
         self._imported_from_quantized = False
         # register saving hook
-        # pdb.set_trace()
         self._register_state_dict_hook(self._state_dict_hook)
-
-        #######################################################
-        # self.quant_check=False
-        # if self.quant_check:
-        #     self.register_buffer("Q_weight",None)
-        #     self.register_buffer("Q_out",None)
-        # # self.register_buffer("input_scale", None)
-        # # self.register_buffer("output_scale",None)
-        # # self.register_buffer("weight_scale",None)
-
-
-        #######################################################
 
     def forward(self, input):
         if self.mode == QuantizationMode.NONE:
@@ -146,7 +132,7 @@ class QuantizedLayer(ABC):
 
     @abstractmethod
     def inference_quantized_forward(self, input):
-        """Implement forward method to be used while evaluating"""
+        """Implement forward methsod to be used while evaluating"""
 
     @classmethod
     def from_config(cls, *args, config=None, **kwargs):
@@ -252,16 +238,13 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         self.register_buffer("input_thresh", torch.zeros(1))
         if self.requantize_output:
             self.register_buffer("output_thresh", torch.zeros(1))
+            # pdb.set_trace()
         # real quantization
         if kwargs.get("bias", True):
             self.register_buffer("_quantized_bias", None)
             self.register_buffer("bias_scale", None)
 
-###################################################################
-        # if kwargs.get("check_feature",True):
-        #     self.register_buffer()
 
-##################################################################
     def training_quantized_forward(self, input):
         """fake quantized forward, fake quantizes weights and activations,
         learn quantization ranges if quantization mode is EMA.
@@ -284,11 +267,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
             if self.mode == QuantizationMode.EMA:
                 self._update_ema(self.output_thresh, out.detach())
             out = _fake_quantize(out, self._get_output_scale(out), self.activation_bits)
-            # if self.quant_check:
-            #     self.Q_out = out
 
-        # if self.quant_check:
-        #     self.Q_weight = Q_weight 
         
         return out
 

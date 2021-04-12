@@ -1,24 +1,24 @@
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=3
 
-project_name=Q8bert_EMA_SCALE
+project_name=Q8bert_EMA_SCALE_batchsize4
 #   "qnli"  "sst-2" "qqp" "wnli" "mnli" 
-for task in "cola"  #"mrpc" "rte" "sst-2" "cola" "sts-b"
+for task in "cola"  "mrpc" "rte" #"sts-b" #"sst-2"   
 do
     case $task in 
-       cola) data="CoLA"; logging_steps=10;;
-       mrpc) data="MRPC"; logging_steps=4;; 
-       sts-b) data="STS-B"; logging_steps=6;;
+       cola) data="CoLA"; logging_steps=40;;
+       mrpc) data="MRPC"; logging_steps=20;; 
+       sts-b) data="STS-B"; logging_steps=30;;
        mnli) data="MNLI"; logging_steps=10;;
-       rte) data="RTE"; logging_steps=3;;
+       rte) data="RTE"; logging_steps=10;;
        wnli) data="WNLI"; logging_steps=10;;
-       sst-2) data="SST-2"; logging_steps=100;; 
-       qqp) data="QQP"; logging_steps=500;; 
+       sst-2) data="SST-2"; logging_steps=400;; 
+       qqp) data="QQP"; logging_steps=2200;; 
        qnli) data="QNLI"; logging_steps=160;;
     esac
     
     for warmup in 0 #50 100 150
     do
-	for lr in 4e-5  #2e-5 3e-5 4e-5 5e-5 
+	for lr in 2e-5 3e-5 4e-5 5e-5 
 	    do
 		for i in 1 2 3 
 		    do
@@ -30,6 +30,15 @@ do
 				mkdir -p ${result_dir}
 			fi
 			logname="${result_dir}/${project_name}_${task}_${i}.txt"
+
+
+			writer_dir="${result_dir}/tensorboard/${h}"
+
+			while [ -d ${writer_dir} ]
+			do
+					h=$((h+1))
+					writer_dir="${result_dir}/tensorboard/${h}"
+			done
 
 			nlp-train transformer_glue \
 				--task_name ${task} \
@@ -44,12 +53,13 @@ do
 				--wandb_project_name ${project_name} \
 				--wandb_run_name "${task}${i}_lr_${lr}_loggingstep_${logging_steps}" \
 				--num_train_epochs 3 \
-				--per_gpu_train_batch_size 16 \
+				--per_gpu_train_batch_size 4 \
 				--per_gpu_eval_batch_size 16 \
 				--learning_rate ${lr} \
 				--logging_steps $logging_steps  \
 				--warmup_steps ${warmup} \
-                --save_steps 0 
+                --save_steps 0 \
+				--writer_dir ${writer_dir}
 		    done
 
         done	 

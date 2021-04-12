@@ -43,6 +43,7 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import seaborn
+import tensorflow as tf
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,8 @@ def get_models(models: List[str]):
     return ALL_MODELS
 
 
+Recorder_test=False
+
 class Recorder():
     def __init__(self, writer_dir = '', tokenizer = None):
 
@@ -72,7 +75,7 @@ class Recorder():
         self.tokenizer = tokenizer
 
         self.train_task = True
-        self.prefix = ['Eval', 'Train']
+        self.prefix = ['Eval_', 'Train_']
         self.attentions = {}
 
         self.input_sequence = None
@@ -124,7 +127,7 @@ class Recorder():
                 return
 
             if (self.step_count+1) % dump_interval == 0:
-
+                return
                 inp = input[0] if isinstance(input, tuple) else input
                 self.input_sequence = self.convert_tensor_to_string(inp) 
                 # pdb.set_trace()
@@ -145,51 +148,62 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
-            self.writer.add_scalar(prefix  + layer_name + 'weight_scale', 
-                                   module._weight_scale.clone().cpu().data.numpy(),
-                                   self.step_count)  
+            # self.writer.add_scalar(prefix  + layer_name + '_weight_scale', 
+            #                        module._weight_scale.clone().cpu().data.numpy(),
+            #                        self.step_count)  
 
-            self.writer.add_scalar(prefix  + layer_name + 'weight_mean', 
-                                   torch.mean(module.weight).clone().cpu().data.numpy(),
-                                   self.step_count) 
+            # self.writer.add_scalar(prefix  + layer_name + '_weight_mean', 
+            #                        torch.mean(module.weight).clone().cpu().data.numpy(),
+            #                        self.step_count) 
 
-            self.writer.add_scalar(prefix  + layer_name + 'weight_std', 
-                                   torch.std(module.weight).clone().cpu().data.numpy(),
-                                   self.step_count) 
-             
+            # self.writer.add_scalar(prefix  + layer_name + '_weight_std', 
+            #                        torch.std(module.weight).clone().cpu().data.numpy(),
+            #                        self.step_count) 
+            
+
+            self.writer.add_scalars(prefix  + layer_name +'_weight_statistics', 
+                                    {'weight_mean' : torch.mean(module.weight).clone().cpu().data.numpy(),
+                                        'weight_std'  : torch.std(module.weight).clone().cpu().data.numpy(),
+                                        'max_weight'  : torch.max(module.weight).clone().cpu().data.numpy(),
+                                        'min_weight'  : torch.max(module.weight).clone().cpu().data.numpy()
+                                    },
+                                    self.step_count)           
 
             if 'embeddings' not in layer_name: # for linear layer
-                self.writer.add_scalar(prefix + layer_name + '_input_thresh', 
-                                        module.input_thresh.clone().cpu().data.numpy(),
-                                        self.step_count)
+                # self.writer.add_scalars(prefix + layer_name + '_input_thresh', 
+                #                         module.input_thresh.clone().cpu().data.numpy(),
+                #                         self.step_count)
                                     
-                self.writer.add_scalar(prefix  + layer_name + '_out_thresh', 
-                                        module.input_thresh.clone().cpu().data.numpy(),
-                                        self.step_count) 
+                # self.writer.add_scalar(prefix  + layer_name + '_out_thresh', 
+                #                         module.input_thresh.clone().cpu().data.numpy(),
+                #                         self.step_count) 
 
-            pdb.set_trace()
+                thresh = {'input_thresh' : module.input_thresh.clone().cpu().data.numpy()}
+                if hasattr(module, 'output_thresh'):
+                    thresh['output_thresh'] = module.output_thresh.clone().cpu().data.numpy()
 
-            self.writer.add_scalar(prefix  + layer_name + 'weight_mean', 
-                                   torch.mean(module.weight.clone()).cpu().data.numpy(),
-                                   self.step_count) 
+                self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, self.step_count)   
+                                  
 
             if (self.step_count+1) % dump_interval == 0:
 
+                    
                 self.writer.add_histogram(prefix + layer_name + '_weight', 
-                                          module.weight.clone().cpu().data.numpy(), 
-                                          self.step_count) 
+                                        module.weight.clone().cpu().data.numpy(), 
+                                        self.step_count) 
 
                 if 'embeddings' not in layer_name: # for linear layer
+
+                    inp = input[0] if isinstance(input, tuple) else input
+                    out = output[0] if isinstance(output, tuple) else output
+
                     self.writer.add_histogram(prefix + layer_name + '_out', 
                                             output.clone().cpu().data.numpy(), 
                                             self.step_count)
 
-                    inp = input[0] if isinstance(input, tuple) else input
-
                     self.writer.add_histogram(prefix + layer_name + '_in', 
                                             inp.clone().cpu().data.numpy(), 
                                             self.step_count) 
-
         return hook
     
     
@@ -233,6 +247,8 @@ class Recorder():
         for handle in self.hook_list:
             handle.remove()
         self.writer.close()
+
+
 
 class TransformerBase(TrainableModel):
     """
@@ -315,10 +331,10 @@ class TransformerBase(TrainableModel):
         self.wandb_off=wandb_off
         if not wandb_off:
             self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
-            self.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
-
+        
         # pdb.set_trace()
-        self.recorder = Recorder(writer_dir=writer_dir, tokenizer=self.tokenizer)
+        if Recorder_test:
+            self.recorder = Recorder(writer_dir=writer_dir, tokenizer=self.tokenizer)
 
         #############################################################################
     def to(self, device="cpu", n_gpus=0):
@@ -520,7 +536,8 @@ class TransformerBase(TrainableModel):
         # for name,layer in self.model.named_modules():
         #     pdb.set_trace()
 
-        self.recorder.register(model=self.model, dump_interval=logging_steps)
+        if Recorder_test:
+            self.recorder.register(model=self.model, dump_interval=logging_steps)
 
         #
         for epoch, _ in enumerate(train_iterator):
@@ -539,9 +556,9 @@ class TransformerBase(TrainableModel):
 
                 # if global_step == 1:
                     
-                #     self.model.check_quantize(check_weight=True)
-                #     self.model.check_quantize(check_feature=True)
-                #     # pdb.set_trace()
+                # self.model.check_quantize(check_weight=True)
+                # self.model.check_quantize(check_feature=True)
+                # pdb.set_trace()
 
                 loss = outputs[0]  # get loss
 
@@ -564,7 +581,8 @@ class TransformerBase(TrainableModel):
                     pure_tr_time_end = time.time()
                     pure_training_time += pure_tr_time_end - pure_tr_time_start
 
-                    self.recorder.step_count += 1
+                    if Recorder_test:
+                        self.recorder.step_count += 1
                     ################################################################
                     if logging_steps > 0 and global_step % logging_steps == 0:
                         # Log metrics and run evaluation on dev/test
@@ -584,7 +602,7 @@ class TransformerBase(TrainableModel):
                         if not self.wandb_off:
                             wandb.log({"eval_loss":eval_loss})   
 
-                        pdb.set_trace()
+                        # pdb.set_trace()
                         ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
@@ -631,7 +649,8 @@ class TransformerBase(TrainableModel):
             save_path=best_model_path,
         )
 
-        self.recorder.remove()
+        if Recorder_test:
+            self.recorder.remove()
 
     def update_best_model(
         self,

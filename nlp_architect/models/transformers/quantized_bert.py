@@ -139,6 +139,8 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         self.key = quantized_linear_setup(
             config, "attention_key", config.hidden_size, self.all_head_size
         )
+
+        # pdb.set_trace()
         self.value = quantized_linear_setup(
             config, "attention_value", config.hidden_size, self.all_head_size
         )
@@ -246,6 +248,7 @@ class QuantizedBertPreTrainedModel(BertPreTrainedModel):
 
         # Load config
         if config is None:
+
             config = cls.config_class.from_pretrained(
                 pretrained_model_name_or_path, *args, **kwargs
             )

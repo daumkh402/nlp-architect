@@ -111,8 +111,8 @@ class TransformerSequenceClassifier(TransformerBase):
 
         ########################################################################################
 
-  
-
+        if not self.wandb_off:
+            self.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
 
 
 

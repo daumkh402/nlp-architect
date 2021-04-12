@@ -10,13 +10,21 @@ do
           sst-2) data="SST-2"; logging_steps=50;; qqp) data="QQP"; logging_steps=50;; qnli) data="QNLI"; logging_steps=50;;
        esac
 
-       seed=$((i*1000))
        result_dir="../nlp_arch_results/${project_name}/test"
        if [ ! -d ${result_dir} ]
               then
               echo "${result_dir} does not exist"
               mkdir -p ${result_dir}
        fi
+
+       h=0
+       writer_dir="${result_dir}/tensorboard/${h}"
+
+       while [ -d ${writer_dir} ]
+       do
+              h=$((h+1))
+              writer_dir="${result_dir}/tensorboard/${h}"
+       done
 
        nlp-train transformer_glue \
               --task_name ${task} \
@@ -35,7 +43,7 @@ do
               --wandb_off \
               --warmup_steps 0 \
               --save_steps 0 \
-              --per_gpu_train_batch_size 32 \
-              --per_gpu_eval_batch_size 32 \
-              --writer_dir "${result_dir}/tensorboard" 
+              --per_gpu_train_batch_size 16 \
+              --per_gpu_eval_batch_size 16 \
+              --writer_dir ${writer_dir}
 done 
