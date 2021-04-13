@@ -111,8 +111,8 @@ class TransformerSequenceClassifier(TransformerBase):
 
         ########################################################################################
 
-        if not self.wandb_off:
-            self.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
+        if not self.recorder.wandb_off:
+            self.recorder.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
 
 
 
@@ -204,14 +204,6 @@ class TransformerSequenceClassifier(TransformerBase):
         if self.task_name == 'qqp':
             return result['f1']   
 
-        # if len(result.keys())==1:
-        #     return result[list(result.keys())[0]]
-        # else:
-        #     # pdb.set_trace()
-        #     if self.metric_fn.__name__ == "acc_and_f1":
-        #         return result['f1']
-        #     else:
-        #         return result['pearson']
 
     def convert_to_tensors(
         self, 

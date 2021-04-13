@@ -103,12 +103,18 @@ def add_glue_args(parser: argparse.ArgumentParser):
     )
 
     parser.add_argument(
-        "--writer_dir",
-        default = None,
-        type = str,
-        required=True,
-        help = "tensorboard save dir"
+    "--writer_dir",
+    default=None,
+    type=str,
+    required=True,
+    help="writer_dir for tensorboard"
     )
+
+    parser.add_argument(
+        "--dump_distributions",
+        action="store_true",
+        help = "dump weight/feature distributions"
+    )   
     # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):

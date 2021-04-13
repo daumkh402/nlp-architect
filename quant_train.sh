@@ -31,7 +31,6 @@ do
 			fi
 			logname="${result_dir}/${project_name}_${task}_${i}.txt"
 
-
 			writer_dir="${result_dir}/tensorboard/${h}"
 
 			while [ -d ${writer_dir} ]

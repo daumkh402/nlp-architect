@@ -40,10 +40,9 @@ from nlp_architect.models.transformers.quantized_bert import QuantizedBertConfig
 import pdb
 import wandb
 import time
-from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 import seaborn
-import tensorflow as tf
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +65,15 @@ def get_models(models: List[str]):
 Recorder_test=False
 
 class Recorder():
-    def __init__(self, writer_dir = '', tokenizer = None):
+    def __init__(self,
+                 tokenizer = None, 
+                 wandb_project_name=None,
+                 wandb_run_name=None,
+                 wandb_off=False,
+                 writer_dir='',
+                 dump_distributions=None):
 
         self.hook_list = []
-        self.writer = SummaryWriter(writer_dir)
         self.step_count = 0
         self.model = None
         self.tokenizer = tokenizer
@@ -77,9 +81,21 @@ class Recorder():
         self.train_task = True
         self.prefix = ['Eval_', 'Train_']
         self.attentions = {}
-
         self.input_sequence = None
 
+        self.writer = SummaryWriter(writer_dir)
+
+        self.wandb_off = wandb_off
+        self.dump_distributions = dump_distributions
+        if not self.wandb_off:
+            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name) 
+
+
+    def WANDB_log(self, tgt, **kwargs):
+        if self.wandb_off:
+            return
+        else:
+            self.WANDB.log(tgt, **kwargs)
 
     def register(self, model, dump_interval):
 
@@ -122,19 +138,14 @@ class Recorder():
 
     def Input_hook(self, layer_name, dump_interval):
         def hook(module, input):
-        
             if self.train_task != self.model.training :
                 return
 
-            if (self.step_count+1) % dump_interval == 0:
-                return
-                inp = input[0] if isinstance(input, tuple) else input
-                self.input_sequence = self.convert_tensor_to_string(inp) 
-                # pdb.set_trace()
-                # self.writer.add_histogram(prefix + layer_name + '_in', 
-                #                           inp.clone().cpu().data.numpy(), 
-                #                           self.step_count)
-    
+            if self.dump_distributions:
+                if (self.step_count+1) % dump_interval == 0:
+                    return
+                    inp = input[0] if isinstance(input, tuple) else input
+                    self.input_sequence = self.convert_tensor_to_string(inp) 
         return hook
 
 
@@ -148,62 +159,43 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
-            # self.writer.add_scalar(prefix  + layer_name + '_weight_scale', 
-            #                        module._weight_scale.clone().cpu().data.numpy(),
-            #                        self.step_count)  
-
-            # self.writer.add_scalar(prefix  + layer_name + '_weight_mean', 
-            #                        torch.mean(module.weight).clone().cpu().data.numpy(),
-            #                        self.step_count) 
-
-            # self.writer.add_scalar(prefix  + layer_name + '_weight_std', 
-            #                        torch.std(module.weight).clone().cpu().data.numpy(),
-            #                        self.step_count) 
-            
-
             self.writer.add_scalars(prefix  + layer_name +'_weight_statistics', 
-                                    {'weight_mean' : torch.mean(module.weight).clone().cpu().data.numpy(),
-                                        'weight_std'  : torch.std(module.weight).clone().cpu().data.numpy(),
-                                        'max_weight'  : torch.max(module.weight).clone().cpu().data.numpy(),
-                                        'min_weight'  : torch.max(module.weight).clone().cpu().data.numpy()
-                                    },
-                                    self.step_count)           
+                    {'weight_mean' : torch.mean(module.weight).clone().cpu().data.numpy(),
+                     'weight_std'  : torch.std(module.weight).clone().cpu().data.numpy(),
+                     'max_weight'  : torch.max(module.weight).clone().cpu().data.numpy(),
+                     'min_weight'  : torch.max(module.weight).clone().cpu().data.numpy()
+                    },
+                    step = self.step_count)           
 
             if 'embeddings' not in layer_name: # for linear layer
-                # self.writer.add_scalars(prefix + layer_name + '_input_thresh', 
-                #                         module.input_thresh.clone().cpu().data.numpy(),
-                #                         self.step_count)
-                                    
-                # self.writer.add_scalar(prefix  + layer_name + '_out_thresh', 
-                #                         module.input_thresh.clone().cpu().data.numpy(),
-                #                         self.step_count) 
 
                 thresh = {'input_thresh' : module.input_thresh.clone().cpu().data.numpy()}
                 if hasattr(module, 'output_thresh'):
                     thresh['output_thresh'] = module.output_thresh.clone().cpu().data.numpy()
 
-                self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, self.step_count)   
+                self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, step = self.step_count)   
                                   
 
-            if (self.step_count+1) % dump_interval == 0:
+            if dump_distributions:
+                if (self.step_count+1) % dump_interval == 0:
 
-                    
-                self.writer.add_histogram(prefix + layer_name + '_weight', 
-                                        module.weight.clone().cpu().data.numpy(), 
-                                        self.step_count) 
+                        
+                    self.writer.add_histogram(prefix + layer_name + '_weight', 
+                                            module.weight.clone().cpu().data.numpy(), 
+                                            step = self.step_count) 
 
-                if 'embeddings' not in layer_name: # for linear layer
+                    if 'embeddings' not in layer_name: # for linear layer
 
-                    inp = input[0] if isinstance(input, tuple) else input
-                    out = output[0] if isinstance(output, tuple) else output
+                        inp = input[0] if isinstance(input, tuple) else input
+                        out = output[0] if isinstance(output, tuple) else output
 
-                    self.writer.add_histogram(prefix + layer_name + '_out', 
-                                            output.clone().cpu().data.numpy(), 
-                                            self.step_count)
+                        self.writer.add_histogram(prefix + layer_name + '_out', 
+                                                output.clone().cpu().data.numpy(), 
+                                                step = self.step_count)
 
-                    self.writer.add_histogram(prefix + layer_name + '_in', 
-                                            inp.clone().cpu().data.numpy(), 
-                                            self.step_count) 
+                        self.writer.add_histogram(prefix + layer_name + '_in', 
+                                                inp.clone().cpu().data.numpy(), 
+                                                step = self.step_count) 
         return hook
     
     
@@ -213,32 +205,32 @@ class Recorder():
                 return
 
             # prefix = self.prefix[self.model.training]
-            
-            # if (self.step_count+1) % dump_interval == 0:
-            # # attention weight  
-            #     if self.model.config.output_attentions:       #self attention layer
-                    
-            #         # output[0] : context vector of size (bsz, max_seq_length, hidden_size)
-            #         # output[1] : attention for all heads (bsz, num_heads, max_seq_length, max_seq_length)
+            # if dump_distributions:
+                # if (self.step_count+1) % dump_interval == 0:
+                # # attention weight  
+                #     if self.model.config.output_attentions:       #self attention layer
+                        
+                #         # output[0] : context vector of size (bsz, max_seq_length, hidden_size)
+                #         # output[1] : attention for all heads (bsz, num_heads, max_seq_length, max_seq_length)
 
-            #         #for Testing 
-            #         # for i in range(self.model.config.num_attnetion_heads)
-            #         # self.writer.add_scalar(prefix + layer_name + '_head' + str(i), output[1][0][i])
+                #         #for Testing 
+                #         # for i in range(self.model.config.num_attnetion_heads)
+                #         # self.writer.add_scalar(prefix + layer_name + '_head' + str(i), output[1][0][i])
 
-            #         # heatmap = axes.pcolor(output[1][0][0].clone().cpu().detach(), cmap=plt.cm.Blues)
-            #         # axes.set_xticklabels(self.input_sequence[0], minor=False)
-            #         # target words -> row labels
-            #         # axes.set_yticklabels(self.input_sequence[0], minor=False)
+                #         # heatmap = axes.pcolor(output[1][0][0].clone().cpu().detach(), cmap=plt.cm.Blues)
+                #         # axes.set_xticklabels(self.input_sequence[0], minor=False)
+                #         # target words -> row labels
+                #         # axes.set_yticklabels(self.input_sequence[0], minor=False)
 
-            #         plt.title('head')
-            #         fig = plt.figure(figsize=(100,100))
-            #         axes = fig.add_subplot(111)
-            #         # plt.pcolor(output[1][0][0].clone().cpu().detach(), self.input_sequence[0], self.input_sequence[0])
-            #         seq_len = len(self.input_sequence[0])
-            #         plt.tight_layout()
-            #         self.draw(data = output[1][0][0][:seq_len][:seq_len].clone().cpu().detach(), x=self.input_sequence[0], y=self.input_sequence[0], ax = axes)
-            #         plt.savefig('test2.png')
-            #         # pdb.set_trace()
+                #         plt.title('head')
+                #         fig = plt.figure(figsize=(100,100))
+                #         axes = fig.add_subplot(111)
+                #         # plt.pcolor(output[1][0][0].clone().cpu().detach(), self.input_sequence[0], self.input_sequence[0])
+                #         seq_len = len(self.input_sequence[0])
+                #         plt.tight_layout()
+                #         self.draw(data = output[1][0][0][:seq_len][:seq_len].clone().cpu().detach(), x=self.input_sequence[0], y=self.input_sequence[0], ax = axes)
+                #         plt.savefig('test2.png')
+                #         # pdb.set_trace()
 
         return hook
 
@@ -278,7 +270,8 @@ class TransformerBase(TrainableModel):
         wandb_project_name=None,
         wandb_run_name=None,
         wandb_off=False,
-        writer_dir=None):
+        writer_dir=None,
+        dump_distributions=None):
     
         """
         Transformers base model (for working with pytorch-transformers models)
@@ -327,14 +320,14 @@ class TransformerBase(TrainableModel):
         self._scheduler = None
         self.training_args = None
 
-        #############################################################################
-        self.wandb_off=wandb_off
-        if not wandb_off:
-            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name)
-        
-        # pdb.set_trace()
-        if Recorder_test:
-            self.recorder = Recorder(writer_dir=writer_dir, tokenizer=self.tokenizer)
+        ##############################################################################
+
+        self.recorder = Recorder(tokenizer=self.tokenizer, 
+                                    wandb_project_name=wandb_project_name,
+                                    wandb_run_name=wandb_run_name,
+                                    wandb_off=wandb_off,
+                                    dump_distributions=dump_distributions,
+                                    writer_dir=writer_dir)
 
         #############################################################################
     def to(self, device="cpu", n_gpus=0):
@@ -555,7 +548,6 @@ class TransformerBase(TrainableModel):
                 outputs = self.model(**inputs)
 
                 # if global_step == 1:
-                    
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
                 # pdb.set_trace()
@@ -599,9 +591,7 @@ class TransformerBase(TrainableModel):
                         ############################################################
                         eval_time_end = time.time()
                         eval_time += eval_time_end - eval_time_start
-                        if not self.wandb_off:
-                            wandb.log({"eval_loss":eval_loss})   
-
+                        self.recorder.log({"eval_loss":eval_loss})   
                         # pdb.set_trace()
                         ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
@@ -614,11 +604,9 @@ class TransformerBase(TrainableModel):
                         self.save_model_checkpoint(
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
-                ##
-                if not self.wandb_off:
-                    wandb.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
-
-                ##
+                ############################################################
+                self.recorder.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                ############################################################
                 if 0 < max_steps < global_step:
                     epoch_iterator.close()
                     break
