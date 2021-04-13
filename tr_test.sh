@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=7
+export CUDA_VISIBLE_DEVICES=0
 project_name=test
 task="rte"
 for i in 1
@@ -16,7 +16,14 @@ do
               qnli) data="QNLI"; logging_steps=1300;;
        esac
 
-       logging_steps=1;
+       logging_steps=100;
+
+       writer_dir="../tensorboard/${project_name}/${run_name}"
+       if [ -d ${writer_dir} ]
+       then
+              echo "${result_dir} already exist"
+              exit
+       fi
 
        result_dir="../nlp_arch_results/${project_name}/test"
        if [ ! -d ${result_dir} ]
@@ -25,14 +32,15 @@ do
               mkdir -p ${result_dir}
        fi
 
-       writer_dir="${result_dir}/tensorboard/${h}"
+       # h=0
+       # writer_dir="${result_dir}/tensorboard/${h}"
+       # while [ -d ${writer_dir} ]
+       # do
+       #               h=$((h+1))
+       #               writer_dir="${result_dir}/tensorboard/${h}"
+       # done
 
-       while [ -d ${writer_dir} ]
-       do
-                     h=$((h+1))
-                     writer_dir="${result_dir}/tensorboard/${h}"
-       done
-
+       run_name="${task}_${i}_loggingstep_${logging_steps}"
        nlp-train transformer_glue \
               --task_name ${task} \
               --model_name_or_path bert-base-uncased \
@@ -46,13 +54,12 @@ do
               --num_train_epochs 1 \
               --logging_steps $logging_steps \
               --wandb_project_name ${project_name} \
-              --wandb_run_name "${task}_test" \
-              --writer_dir ${writer_dir} \
+              --wandb_run_name ${run_name} \
+              --writer_dir $writer_dir \
               --warmup_steps 0 \
               --save_steps 0 \
-              --dump_distributions \
               --per_gpu_train_batch_size 8 \
               --per_gpu_eval_batch_size 8 \
-              
+              --dump_distributions 
 
 done 

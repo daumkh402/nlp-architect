@@ -17,6 +17,22 @@ do
 	qnli) data="QNLI"; logging_steps=1300;;
     esac
 
+    run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}" 
+    h=0
+    writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+    while [ -d ${writer_dir} ]
+    do
+        h=$((h+1))
+        writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+    done
+
+    result_dir="../nlp_arch_results/${project_name}/${task}/lr_${lr}/${i}"
+    if [ ! -d ${result_dir} ]
+    then
+        echo "${result_dir} does not exist"
+        mkdir -p ${result_dir}
+    fi
+
     for i in 1 2 3
     do  
         nlp-train transformer_glue \
@@ -30,12 +46,13 @@ do
                 --overwrite_output_dir \
                 --seed $RANDOM \
                 --wandb_project_name ${project_name} \
-                --wandb_run_name "${task}${i}_loggingstep_${logging_steps}" \
+                --wandb_run_name ${run_name} \
                 --num_train_epochs 3 \
                 --logging_steps $logging_steps  \
                 --save_steps 0 \
                 --per_gpu_train_batch_size 8 \
-                --per_gpu_eval_batch_size 16       
+                --per_gpu_eval_batch_size 16  \
+                --writer_dir $writer_dir    
     done 
 done
 

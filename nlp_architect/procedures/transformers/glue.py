@@ -111,9 +111,9 @@ def add_glue_args(parser: argparse.ArgumentParser):
     )
 
     parser.add_argument(
-        "--dump_distributions",
-        action="store_true",
-        help = "dump weight/feature distributions"
+    "--dump_distributions",
+    action="store_true",
+    help = "dump weight/feature distributions"
     )   
     # pdb.set_trace()
 
@@ -153,7 +153,8 @@ def do_training(args):
         wandb_run_name=args.wandb_run_name,
         wandb_off=args.wandb_off,
         task_name=args.task_name,
-        writer_dir=args.writer_dir
+        writer_dir=args.writer_dir,
+        dump_distributions=args.dump_distributions
         )
     
 

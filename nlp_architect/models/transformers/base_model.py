@@ -62,7 +62,7 @@ def get_models(models: List[str]):
     return ALL_MODELS
 
 
-Recorder_test=False
+Record=True
 
 class Recorder():
     def __init__(self,
@@ -71,7 +71,8 @@ class Recorder():
                  wandb_run_name=None,
                  wandb_off=False,
                  writer_dir='',
-                 dump_distributions=None):
+                 dump_distributions=None,
+                 model_type=None):
 
         self.hook_list = []
         self.step_count = 0
@@ -87,6 +88,7 @@ class Recorder():
 
         self.wandb_off = wandb_off
         self.dump_distributions = dump_distributions
+        self.model_type=model_type
         if not self.wandb_off:
             self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name) 
 
@@ -100,7 +102,7 @@ class Recorder():
     def register(self, model, dump_interval):
 
         self.model = model
-
+        # pdb.set_trace()
         for name, layer in model.named_modules():
             # pdb.set_trace()
 
@@ -159,30 +161,30 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
+
             self.writer.add_scalars(prefix  + layer_name +'_weight_statistics', 
                     {'weight_mean' : torch.mean(module.weight).clone().cpu().data.numpy(),
                      'weight_std'  : torch.std(module.weight).clone().cpu().data.numpy(),
                      'max_weight'  : torch.max(module.weight).clone().cpu().data.numpy(),
                      'min_weight'  : torch.max(module.weight).clone().cpu().data.numpy()
                     },
-                    step = self.step_count)           
+                    self.step_count)           
 
-            if 'embeddings' not in layer_name: # for linear layer
+            if self.model_type == 'quant_bert':
+                self.writer.add_scalars(prefix  + layer_name + 'weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
+                if 'embeddings' not in layer_name: # for linear layer
+                    thresh = {'input_thresh' : module.input_thresh.clone().cpu().data.numpy()}
+                    if hasattr(module, 'output_thresh'):
+                        thresh['output_thresh'] = module.output_thresh.clone().cpu().data.numpy()
+                    self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, self.step_count)   
 
-                thresh = {'input_thresh' : module.input_thresh.clone().cpu().data.numpy()}
-                if hasattr(module, 'output_thresh'):
-                    thresh['output_thresh'] = module.output_thresh.clone().cpu().data.numpy()
-
-                self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, step = self.step_count)   
-                                  
-
-            if dump_distributions:
+            if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:
 
-                        
+                    # pdb.set_trace()
                     self.writer.add_histogram(prefix + layer_name + '_weight', 
                                             module.weight.clone().cpu().data.numpy(), 
-                                            step = self.step_count) 
+                                            self.step_count) 
 
                     if 'embeddings' not in layer_name: # for linear layer
 
@@ -191,11 +193,13 @@ class Recorder():
 
                         self.writer.add_histogram(prefix + layer_name + '_out', 
                                                 output.clone().cpu().data.numpy(), 
-                                                step = self.step_count)
+                                                self.step_count)
 
                         self.writer.add_histogram(prefix + layer_name + '_in', 
                                                 inp.clone().cpu().data.numpy(), 
-                                                step = self.step_count) 
+                                                self.step_count) 
+
+                                                
         return hook
     
     
@@ -205,7 +209,7 @@ class Recorder():
                 return
 
             # prefix = self.prefix[self.model.training]
-            # if dump_distributions:
+            # if self.dump_distributions:
                 # if (self.step_count+1) % dump_interval == 0:
                 # # attention weight  
                 #     if self.model.config.output_attentions:       #self attention layer
@@ -319,15 +323,16 @@ class TransformerBase(TrainableModel):
         self._optimizer = None
         self._scheduler = None
         self.training_args = None
-
+        # pdb.set_trace()
         ##############################################################################
 
         self.recorder = Recorder(tokenizer=self.tokenizer, 
                                     wandb_project_name=wandb_project_name,
                                     wandb_run_name=wandb_run_name,
                                     wandb_off=wandb_off,
-                                    dump_distributions=dump_distributions,
-                                    writer_dir=writer_dir)
+                                    writer_dir=writer_dir,
+                                    dump_distributions=dump_distributions,                                
+                                    model_type=model_type)
 
         #############################################################################
     def to(self, device="cpu", n_gpus=0):
@@ -529,7 +534,7 @@ class TransformerBase(TrainableModel):
         # for name,layer in self.model.named_modules():
         #     pdb.set_trace()
 
-        if Recorder_test:
+        if Record:
             self.recorder.register(model=self.model, dump_interval=logging_steps)
 
         #
@@ -573,7 +578,7 @@ class TransformerBase(TrainableModel):
                     pure_tr_time_end = time.time()
                     pure_training_time += pure_tr_time_end - pure_tr_time_start
 
-                    if Recorder_test:
+                    if Record:
                         self.recorder.step_count += 1
                     ################################################################
                     if logging_steps > 0 and global_step % logging_steps == 0:
@@ -637,7 +642,7 @@ class TransformerBase(TrainableModel):
             save_path=best_model_path,
         )
 
-        if Recorder_test:
+        if Record:
             self.recorder.remove()
 
     def update_best_model(

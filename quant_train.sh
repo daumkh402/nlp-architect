@@ -15,30 +15,27 @@ do
        qqp) data="QQP"; logging_steps=2200;; 
        qnli) data="QNLI"; logging_steps=160;;
     esac
-    
-    for warmup in 0 #50 100 150
-    do
+
 	for lr in 2e-5 3e-5 4e-5 5e-5 
-	    do
+	do
 		for i in 1 2 3 
-		    do
-			seed=$((i*1000))
+		do
+			h=0
+		    writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+			while [ -d ${writer_dir} ]
+			do
+				h=$((h+1))
+				writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+			done
+
 			result_dir="../nlp_arch_results/${project_name}/${task}/lr_${lr}/${i}"
 			if [ ! -d ${result_dir} ]
 				then
 				echo "${result_dir} does not exist"
 				mkdir -p ${result_dir}
 			fi
-			logname="${result_dir}/${project_name}_${task}_${i}.txt"
 
-			writer_dir="${result_dir}/tensorboard/${h}"
-
-			while [ -d ${writer_dir} ]
-			do
-					h=$((h+1))
-					writer_dir="${result_dir}/tensorboard/${h}"
-			done
-
+			run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
 			nlp-train transformer_glue \
 				--task_name ${task} \
 				--model_name_or_path bert-base-uncased \
@@ -50,21 +47,17 @@ do
 				--overwrite_output_dir \
 				--seed $RANDOM \
 				--wandb_project_name ${project_name} \
-				--wandb_run_name "${task}${i}_lr_${lr}_loggingstep_${logging_steps}" \
+				--wandb_run_name ${run_name} \
 				--num_train_epochs 3 \
 				--per_gpu_train_batch_size 4 \
 				--per_gpu_eval_batch_size 16 \
 				--learning_rate ${lr} \
 				--logging_steps $logging_steps  \
 				--warmup_steps ${warmup} \
-                --save_steps 0 \
-				--writer_dir ${writer_dir}
-		    done
-
-        done	 
-    
-    done  
-     
+				--save_steps 0 \
+				--writer_dir $writer_dir
+		done
+    done	    
 done
 
 
