@@ -20,6 +20,7 @@ do
 	do
 		for i in 1 2 3 
 		do
+			run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
 			h=0
 		    writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
 			while [ -d ${writer_dir} ]
@@ -35,7 +36,7 @@ do
 				mkdir -p ${result_dir}
 			fi
 
-			run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
+			
 			nlp-train transformer_glue \
 				--task_name ${task} \
 				--model_name_or_path bert-base-uncased \

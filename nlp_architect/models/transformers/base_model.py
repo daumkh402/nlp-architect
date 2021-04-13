@@ -162,27 +162,26 @@ class Recorder():
             prefix = self.prefix[self.model.training]
 
 
-            self.writer.add_scalars(prefix  + layer_name +'_weight_statistics', 
-                    {'weight_mean' : torch.mean(module.weight).clone().cpu().data.numpy(),
-                     'weight_std'  : torch.std(module.weight).clone().cpu().data.numpy(),
-                     'max_weight'  : torch.max(module.weight).clone().cpu().data.numpy(),
-                     'min_weight'  : torch.max(module.weight).clone().cpu().data.numpy()
-                    },
-                    self.step_count)           
-
+            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_mean', torch.mean(module.weight).clone().cpu().data.numpy(), self.step_count)
+            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_std', torch.std(module.weight).clone().cpu().data.numpy(), self.step_count)
+            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_max', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
+            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
+         
             if self.model_type == 'quant_bert':
-                self.writer.add_scalars(prefix  + layer_name + 'weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
+                self.writer.add_scalars(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
                 if 'embeddings' not in layer_name: # for linear layer
-                    thresh = {'input_thresh' : module.input_thresh.clone().cpu().data.numpy()}
+                    in_thresh = module.input_thresh.clone().cpu().data.numpy()
                     if hasattr(module, 'output_thresh'):
-                        thresh['output_thresh'] = module.output_thresh.clone().cpu().data.numpy()
-                    self.writer.add_scalars(prefix  + layer_name + '_thresh_values', thresh, self.step_count)   
+                        out_thresh= module.output_thresh.clone().cpu().data.numpy()
 
+                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', in_thresh, self.step_count)   
+                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', out_thresh, self.step_count) 
+            
             if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:
 
                     # pdb.set_trace()
-                    self.writer.add_histogram(prefix + layer_name + '_weight', 
+                    self.writer.add_histogram(prefix + layer_name + '/weight', 
                                             module.weight.clone().cpu().data.numpy(), 
                                             self.step_count) 
 
@@ -191,11 +190,11 @@ class Recorder():
                         inp = input[0] if isinstance(input, tuple) else input
                         out = output[0] if isinstance(output, tuple) else output
 
-                        self.writer.add_histogram(prefix + layer_name + '_out', 
+                        self.writer.add_histogram(prefix + layer_name + '/out', 
                                                 output.clone().cpu().data.numpy(), 
                                                 self.step_count)
 
-                        self.writer.add_histogram(prefix + layer_name + '_in', 
+                        self.writer.add_histogram(prefix + layer_name + '/in', 
                                                 inp.clone().cpu().data.numpy(), 
                                                 self.step_count) 
 

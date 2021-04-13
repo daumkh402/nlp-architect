@@ -16,14 +16,10 @@ do
               qnli) data="QNLI"; logging_steps=1300;;
        esac
 
-       logging_steps=100;
-
+       logging_steps=300;
+       run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
        writer_dir="../tensorboard/${project_name}/${run_name}"
-       if [ -d ${writer_dir} ]
-       then
-              echo "${result_dir} already exist"
-              exit
-       fi
+
 
        result_dir="../nlp_arch_results/${project_name}/test"
        if [ ! -d ${result_dir} ]
