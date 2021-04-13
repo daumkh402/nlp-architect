@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=6,7
+export CUDA_VISIBLE_DEVICES=7
 project_name=test
 task="rte"
 for i in 1
@@ -51,8 +51,8 @@ do
               --warmup_steps 0 \
               --save_steps 0 \
               --dump_distributions \
-              --per_gpu_train_batch_size 16 \
-              --per_gpu_eval_batch_size 16 \
+              --per_gpu_train_batch_size 8 \
+              --per_gpu_eval_batch_size 8 \
               
 
 done 

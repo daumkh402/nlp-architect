@@ -591,7 +591,7 @@ class TransformerBase(TrainableModel):
                         ############################################################
                         eval_time_end = time.time()
                         eval_time += eval_time_end - eval_time_start
-                        self.recorder.log({"eval_loss":eval_loss})   
+                        self.recorder.WANDB_log({"eval_loss":eval_loss})   
                         # pdb.set_trace()
                         ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
@@ -605,7 +605,7 @@ class TransformerBase(TrainableModel):
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
                 ############################################################
-                self.recorder.log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                self.recorder.WANDB_log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
                 ############################################################
                 if 0 < max_steps < global_step:
                     epoch_iterator.close()
