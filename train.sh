@@ -6,15 +6,15 @@ for task in  "sts-b"
 do
     logging_steps=25;
     case $task in 
-        cola) data="CoLA"; logging_steps=100;; 
-	mrpc) data="MRPC"; logging_steps=45;; 
-	sts-b) data="STS-B"; logging_steps=70;
-        mnli) data="MNLI"; logging_steps=4900;;  
-	rte) data="RTE"; logging_steps=30;; 
-        wnli) data="WNLI"; logging_steps=8;;
-        sst-2) data="SST-2"; logging_steps=840;; 
-	qqp) data="QQP"; logging_steps=4500;; 
-	qnli) data="QNLI"; logging_steps=1300;;
+       cola) data="CoLA"; logging_steps=40;;				# 
+       mrpc) data="MRPC"; logging_steps=20;; 
+       sts-b) data="STS-B"; logging_steps=40;;
+       mnli) data="MNLI"; logging_steps=2400;;
+       rte) data="RTE"; logging_steps=30;;
+       wnli) data="WNLI"; logging_steps=8;;
+       sst-2) data="SST-2"; logging_steps=100;; 
+       qqp) data="QQP"; logging_steps=2500;; 
+       qnli) data="QNLI"; logging_steps=600;;
     esac
 
     run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}" 
@@ -37,7 +37,7 @@ do
     do  
         nlp-train transformer_glue \
                 --task_name ${task} \
-                --model_name_or_path bert-base-uncased \
+                --model_name_or_path ../bert_model \
                 --model_type bert \
                 --output_dir ${result_dir} \
                 --evaluate_during_training \

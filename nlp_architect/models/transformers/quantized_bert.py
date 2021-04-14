@@ -71,8 +71,8 @@ def quantized_linear_setup(config, name, *args, **kwargs):
     
     try:
         config.output_attentions=True
-        # pdb.set_trace()
         ##
+        ## config.__class__ :  <class 'nlp_architect.models.transformers.quantized_bert.QuantizedBertConfig'>
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
 
         linear = QuantizedLinear.from_config(*args, **kwargs, config=quant_config)
@@ -87,8 +87,8 @@ def quantized_embedding_setup(config, name, *args, **kwargs):
     """
     try:
        ##
-        config.output_attentions = True
         # pdb.set_trace()
+        config.output_attentions = True
         ##
 
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
@@ -240,7 +240,6 @@ class QuantizedBertPreTrainedModel(BertPreTrainedModel):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *args, from_8bit=False, **kwargs):
         """load trained model from 8bit model"""
-        # pdb.set_trace()
         if not from_8bit:
             return super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
         config = kwargs.pop("config", None)

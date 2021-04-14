@@ -5,15 +5,15 @@ project_name=Q8bert_EMA_SCALE_batchsize1
 for task in "cola"  "mrpc" #"rte" #"sts-b" #"sst-2"   
 do
     case $task in 
-       cola) data="CoLA"; logging_steps=40;;
+       cola) data="CoLA"; logging_steps=40;;				# 
        mrpc) data="MRPC"; logging_steps=20;; 
-       sts-b) data="STS-B"; logging_steps=30;;
-       mnli) data="MNLI"; logging_steps=10;;
-       rte) data="RTE"; logging_steps=10;;
-       wnli) data="WNLI"; logging_steps=10;;
-       sst-2) data="SST-2"; logging_steps=400;; 
-       qqp) data="QQP"; logging_steps=2200;; 
-       qnli) data="QNLI"; logging_steps=160;;
+       sts-b) data="STS-B"; logging_steps=40;;
+       mnli) data="MNLI"; logging_steps=2400;;
+       rte) data="RTE"; logging_steps=30;;
+       wnli) data="WNLI"; logging_steps=8;;
+       sst-2) data="SST-2"; logging_steps=100;; 
+       qqp) data="QQP"; logging_steps=2500;; 
+       qnli) data="QNLI"; logging_steps=600;;
     esac
 
 	for lr in 2e-5 3e-5 4e-5 5e-5 
@@ -39,7 +39,7 @@ do
 			
 			nlp-train transformer_glue \
 				--task_name ${task} \
-				--model_name_or_path bert-base-uncased \
+				--model_name_or_path ../Qbert_model \
 				--model_type quant_bert \
 				--output_dir ${result_dir} \
 				--evaluate_during_training \

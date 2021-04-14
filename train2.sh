@@ -8,11 +8,17 @@ do
         do
          logging_steps=50;
             case $task in
-                cola) data="CoLA";; mrpc) data="MRPC";; sts-b) data="STS-B";;
-                mnli) data="MNLI";;  rte) data="RTE";; wnli) data="WNLI";;
-                sst-2) data="SST-2"; logging_steps=500;; qqp) data="QQP"; logging_steps=1000;; qnli) data="QNLI"; logging_steps=500;;
+                cola) data="CoLA"; logging_steps=40;;				# 
+                mrpc) data="MRPC"; logging_steps=20;; 
+                sts-b) data="STS-B"; logging_steps=40;;
+                mnli) data="MNLI"; logging_steps=2400;;
+                rte) data="RTE"; logging_steps=30;;
+                wnli) data="WNLI"; logging_steps=8;;
+                sst-2) data="SST-2"; logging_steps=100;; 
+                qqp) data="QQP"; logging_steps=2500;; 
+                qnli) data="QNLI"; logging_steps=600;;           
             esac
-
+            
             for i in 4 5 6 
             do
                 seed=$((i*1000))

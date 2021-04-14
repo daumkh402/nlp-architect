@@ -108,7 +108,7 @@ class TransformerSequenceClassifier(TransformerBase):
         self.task_type = task_type
         self.metric_fn = metric_fn
         self.to(self.device, self.n_gpus)
-
+        # pdb.set_trace()
         ########################################################################################
 
         if not self.recorder.wandb_off:

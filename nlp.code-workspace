@@ -8,6 +8,9 @@
         },
         {
             "path": "../nlp_arch_results"
+        },
+        {
+            "path": "../anaconda3/envs/nlp/lib/python3.7/site-packages/transformers"
         }
     ]
 }

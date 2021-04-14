@@ -99,6 +99,7 @@ class QuantizedLayer(ABC):
     def __init__(self, *args, weight_bits=8, start_step=0, mode="none", **kwargs):
         if weight_bits < 2:
             raise ValueError(f"weight_bits={weight_bits} must be higher than 1 ")
+        # pdb.set_trace()
         super().__init__(*args, **kwargs)
         self.weight_bits = weight_bits
         self.mode = QuantizationMode[mode.upper()]
@@ -238,12 +239,11 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         self.register_buffer("input_thresh", torch.zeros(1))
         if self.requantize_output:
             self.register_buffer("output_thresh", torch.zeros(1))
-            # pdb.set_trace()
         # real quantization
         if kwargs.get("bias", True):
             self.register_buffer("_quantized_bias", None)
             self.register_buffer("bias_scale", None)
-
+        # pdb.set_trace()
 
     def training_quantized_forward(self, input):
         """fake quantized forward, fake quantizes weights and activations,
@@ -403,7 +403,7 @@ class QuantizationConfig(Config):
     ATTRIBUTES = {
         "activation_bits": 8,
         "weight_bits": 8,
-        "mode": "none",
+        "mode": "none", #"none",
         "start_step": 0,
         "ema_decay": 0.9999,
         "requantize_output": True,

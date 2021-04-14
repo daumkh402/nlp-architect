@@ -77,6 +77,7 @@ class Recorder():
         self.hook_list = []
         self.step_count = 0
         self.model = None
+        self.config=None
         self.tokenizer = tokenizer
 
         self.train_task = True
@@ -99,9 +100,10 @@ class Recorder():
         else:
             self.WANDB.log(tgt, **kwargs)
 
-    def register(self, model, dump_interval):
+    def register(self, model, config, dump_interval):
 
         self.model = model
+        self.config = config
         # pdb.set_trace()
         for name, layer in model.named_modules():
             # pdb.set_trace()
@@ -114,8 +116,8 @@ class Recorder():
                 handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
                 self.hook_list.append(handle)
 
-            if name[-14:] == 'attention.self':
-                handle = layer.register_forward_hook(self.Attention_hook(name, dump_interval))
+            if name == 'bert.encoder' and self.config.output_attentions:
+                handle = layer.register_forward_hook(self.encoder_hook(name, dump_interval))
                 self.hook_list.append(handle)   
                 
 
@@ -131,7 +133,7 @@ class Recorder():
         
         return input_strings
 
-    
+
     def draw(self,data, x, y, ax):
         seaborn.heatmap(data, 
                         xticklabels=x, square=True, yticklabels=y,  
@@ -172,17 +174,17 @@ class Recorder():
                 if 'embeddings' not in layer_name: # for linear layer
                     in_thresh = module.input_thresh.clone().cpu().data.numpy()
                     self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', in_thresh, self.step_count)
-                    
+
                     if hasattr(module, 'output_thresh'):
                         out_thresh= module.output_thresh.clone().cpu().data.numpy()
                         self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/output_thresh', out_thresh, self.step_count) 
                        
                     
-            
+            # pdb.set_trace()
             if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:
 
-                    # pdb.set_trace()
+                    
                     self.writer.add_histogram(prefix + layer_name + '/weight', 
                                             module.weight.clone().cpu().data.numpy(), 
                                             self.step_count) 
@@ -204,22 +206,33 @@ class Recorder():
         return hook
     
     
-    def Attention_hook(self, layer_name, dump_interval):
+    def encoder_hook(self, layer_name, dump_interval):
         def hook(module, input, output) :
             if self.train_task != self.model.training :
                 return
 
-            # prefix = self.prefix[self.model.training]
+            prefix = self.prefix[self.model.training]
+
+            if self.config.output_hidden_states:
+                attention_weights = output[2]
+            else:
+                attention_weights = output[1]           # tuple of length #num_layer. num_layers x (bsz x num_heads x max_seq x max_seq)
+
+            pdb.set_trace()
+
+            
+            # for l in range(len(attention_weights)):
+
             # if self.dump_distributions:
-                # if (self.step_count+1) % dump_interval == 0:
-                # # attention weight  
-                #     if self.model.config.output_attentions:       #self attention layer
-                        
+            #     if (self.step_count+1) % dump_interval == 0:
+                # attention weight  
+                    # if self.model.config.output_attentions:       #self attention layer
+                         
                 #         # output[0] : context vector of size (bsz, max_seq_length, hidden_size)
                 #         # output[1] : attention for all heads (bsz, num_heads, max_seq_length, max_seq_length)
 
                 #         #for Testing 
-                #         # for i in range(self.model.config.num_attnetion_heads)
+                #         # for i in range(self.model.config.num_attention_heads)
                 #         # self.writer.add_scalar(prefix + layer_name + '_head' + str(i), output[1][0][i])
 
                 #         # heatmap = axes.pcolor(output[1][0][0].clone().cpu().detach(), cmap=plt.cm.Blues)
@@ -244,7 +257,6 @@ class Recorder():
         for handle in self.hook_list:
             handle.remove()
         self.writer.close()
-
 
 
 class TransformerBase(TrainableModel):
@@ -327,13 +339,14 @@ class TransformerBase(TrainableModel):
         # pdb.set_trace()
         ##############################################################################
 
-        self.recorder = Recorder(tokenizer=self.tokenizer, 
-                                    wandb_project_name=wandb_project_name,
-                                    wandb_run_name=wandb_run_name,
-                                    wandb_off=wandb_off,
-                                    writer_dir=writer_dir,
-                                    dump_distributions=dump_distributions,                                
-                                    model_type=model_type)
+        if Record:
+            self.recorder = Recorder(tokenizer=self.tokenizer, 
+                                        wandb_project_name=wandb_project_name,
+                                        wandb_run_name=wandb_run_name,
+                                        wandb_off=wandb_off,
+                                        writer_dir=writer_dir,
+                                        dump_distributions=dump_distributions,                                
+                                        model_type=model_type)
 
         #############################################################################
     def to(self, device="cpu", n_gpus=0):
@@ -536,7 +549,7 @@ class TransformerBase(TrainableModel):
         #     pdb.set_trace()
 
         if Record:
-            self.recorder.register(model=self.model, dump_interval=logging_steps)
+            self.recorder.register(model=self.model, config=self.config, dump_interval=logging_steps)
 
         #
         for epoch, _ in enumerate(train_iterator):
@@ -556,7 +569,7 @@ class TransformerBase(TrainableModel):
                 # if global_step == 1:
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
-                # pdb.set_trace()
+                    # pdb.set_trace()
 
                 loss = outputs[0]  # get loss
 
