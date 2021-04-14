@@ -70,8 +70,7 @@ def quantized_linear_setup(config, name, *args, **kwargs):
     """
     
     try:
-        config.output_attentions=True
-        ##
+
         ## config.__class__ :  <class 'nlp_architect.models.transformers.quantized_bert.QuantizedBertConfig'>
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
 
@@ -86,11 +85,6 @@ def quantized_embedding_setup(config, name, *args, **kwargs):
     Get QuantizedEmbedding layer according to config params
     """
     try:
-       ##
-        # pdb.set_trace()
-        config.output_attentions = True
-        ##
-
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
         embedding = QuantizedEmbedding.from_config(*args, **kwargs, config=quant_config)
     except AttributeError:
