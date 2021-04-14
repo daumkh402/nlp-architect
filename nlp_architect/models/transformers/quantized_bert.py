@@ -70,7 +70,6 @@ def quantized_linear_setup(config, name, *args, **kwargs):
     """
     
     try:
-
         ## config.__class__ :  <class 'nlp_architect.models.transformers.quantized_bert.QuantizedBertConfig'>
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
 

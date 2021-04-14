@@ -3,6 +3,9 @@
         {
             "path": "."
         },
+		{
+			"path": "./nlp_architect"
+		},
         {
             "path": "../glue_data"
         },
