@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=3
 
-project_name=Q8bert_EMA_SCALE_batchsize4
+project_name=Q8bert_EMA_SCALE_batchsize1
 #   "qnli"  "sst-2" "qqp" "wnli" "mnli" 
-for task in "cola"  "mrpc" "rte" #"sts-b" #"sst-2"   
+for task in "cola"  "mrpc" #"rte" #"sts-b" #"sst-2"   
 do
     case $task in 
        cola) data="CoLA"; logging_steps=40;;
@@ -50,11 +50,10 @@ do
 				--wandb_project_name ${project_name} \
 				--wandb_run_name ${run_name} \
 				--num_train_epochs 3 \
-				--per_gpu_train_batch_size 4 \
+				--per_gpu_train_batch_size 1 \
 				--per_gpu_eval_batch_size 16 \
 				--learning_rate ${lr} \
 				--logging_steps $logging_steps  \
-				--warmup_steps ${warmup} \
 				--save_steps 0 \
 				--writer_dir $writer_dir
 		done

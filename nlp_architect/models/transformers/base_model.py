@@ -168,14 +168,16 @@ class Recorder():
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
          
             if self.model_type == 'quant_bert':
-                self.writer.add_scalars(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
+                self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
                 if 'embeddings' not in layer_name: # for linear layer
                     in_thresh = module.input_thresh.clone().cpu().data.numpy()
+                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', in_thresh, self.step_count)
+                    
                     if hasattr(module, 'output_thresh'):
                         out_thresh= module.output_thresh.clone().cpu().data.numpy()
-
-                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', in_thresh, self.step_count)   
-                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', out_thresh, self.step_count) 
+                        self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/output_thresh', out_thresh, self.step_count) 
+                       
+                    
             
             if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:

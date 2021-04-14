@@ -6,13 +6,13 @@ for task in  "cola" "mrpc" "rte" "sst-2" "qqp"  #"sts-b"
 do
     logging_steps=25;
     case $task in 
-        cola) data="CoLA"; logging_steps=530; lr=2e-5;; 
+    cola) data="CoLA"; logging_steps=530; lr=2e-5;; 
 	mrpc) data="MRPC"; logging_steps=225; lr=3e-5;; 
 	sts-b) data="STS-B"; logging_steps=350; lr=3e-5;;
-        mnli) data="MNLI"; logging_steps=24500; lr=2e-5;;  
+    mnli) data="MNLI"; logging_steps=24500; lr=2e-5;;  
 	rte) data="RTE"; logging_steps=150; lr=2e-5;;
-        wnli) data="WNLI"; logging_steps=40; lr=2e-5;;
-        sst-2) data="SST-2"; logging_steps=4200; lr=2e-5;;
+    wnli) data="WNLI"; logging_steps=40; lr=2e-5;;
+    sst-2) data="SST-2"; logging_steps=4200; lr=2e-5;;
 	qqp) data="QQP"; logging_steps=22500; lr=3e-5;;
 	qnli) data="QNLI"; logging_steps=6500; lr=2e-5;;
     esac
@@ -25,8 +25,6 @@ do
         h=$((h+1))
         writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
     done
-
-
 
     for i in 1
     do  
