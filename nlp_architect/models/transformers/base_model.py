@@ -93,6 +93,7 @@ class Recorder():
         if not self.wandb_off:
             self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name) 
 
+        self.l_to_h_score = None
 
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
@@ -159,7 +160,9 @@ class Recorder():
             if self.train_task != self.model.training :
                 return
             
-            # pdb.set_trace()
+            
+            # if 'key' in layer_name or 'query' in layer_name or 'value' in layer_name:
+            #     pdb.set_trace()
 
             prefix = self.prefix[self.model.training]
 
@@ -213,30 +216,35 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
-            # pdb.set_trace()
-
-        
-            if self.dump_distributions:
-
+            pdb.set_trace() 
+            #if self.dump_distributions:
+            if True:
                 if self.config.output_hidden_states:
                     attention_weights = output[2]
                 else:
                     attention_weights = output[1]           # tuple of length #num_layer. num_layers x (bsz x num_heads x max_seq x max_seq)  
 
-
                 for i,layer in enumerate(attention_weights):
                     if i == 0:
                         attentions = layer.unsqueeze(dim=0)
-                    else:
-                        
+                    else:                       
                         attentions = torch.cat((attentions, layer.unsqueeze(dim=0)), dim = 0)
 
-                attentions = attentions.clone().cpu().detach()      
-                attentions = torch.mean(attentions,dim=-1)  # num_layers x bsz x num_heads x max_seq
-                attentions = attentions.permute(0,2,1,3)    # num_layers x num_heads x bsz x max_seq
+                attentions = attentions.clone().detach()  
+                attentions = torch.max(attentions,dim=-1).values  # num_layers x bsz x num_heads x max_seq
+                attentions = attentions.permute(0,2,1,3)          # num_layers x num_heads x bsz x max_seq
+                new_shape = attentions.size()
+                new_shape = (new_shape[0],new_shape[1],-1)
+                attentions = attentions.reshape(new_shape)        # num_layers x num_heads x (bsz * max_seq)
+                attentions = attentions.mean(dim=-1)              # num_layers x num_heads
 
+                pdb.set_trace()
+                if self.l_to_h_score is None:
+                    self.l_to_h_score = attentions
+                else:
+                    self.l_to_h_score = torch.mean(torch.stack((self.l_to_h_score, attentions),dim=0),dim=0)
 
-
+                
             #     if (self.step_count+1) % dump_interval == 0:
                 # attention weight  
                     # if self.model.config.output_attentions:       #self attention layer
@@ -265,6 +273,11 @@ class Recorder():
 
         return hook
 
+    def l_to_h_heatmap(self):
+        if self.l_to_h_score is not None:
+            fig = plt.figure()
+            seaborn.heatmap(data=self.l_to_h_score.cpu().numpy(), linewidth=0.5, cbar=True)
+            self.writer.add_figure('layer_to_head score', fig)
 
     def remove(self):
         for handle in self.hook_list:
@@ -670,6 +683,7 @@ class TransformerBase(TrainableModel):
         )
 
         if Record:
+            self.recorder.l_to_h_heatmap()
             self.recorder.remove()
 
     def update_best_model(

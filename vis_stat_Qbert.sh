@@ -37,8 +37,8 @@ do
         
         nlp-train transformer_glue \
                 --task_name ${task} \
-                --model_name_or_path ../bert_model \
-                --model_type bert \
+                --model_name_or_path ../Qbert_model \
+                --model_type quant_bert \
                 --output_dir ${result_dir} \
                 --evaluate_during_training \
                 --data_dir ../glue_data/${data} \

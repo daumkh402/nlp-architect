@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=3
 
 project_name=FPbert_vis_attentions
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp"              "wnli" "mnli" 
-for task in  "cola" "mrpc" "rte" "sts-b" #"sst-2" "qqp"  #"sts-b" 
+for task in  "sts-b" #"sst-2" "qqp"  #"sts-b" 
 do
     logging_steps=25;
     case $task in 
@@ -37,8 +37,8 @@ do
         
         nlp-train transformer_glue \
                 --task_name ${task} \
-                --model_name_or_path ../bert_model \
-                --model_type bert \
+                --model_name_or_path ../Qbert_model \
+                --model_type quant_bert \
                 --output_dir ${result_dir} \
                 --evaluate_during_training \
                 --data_dir ../glue_data/${data} \
