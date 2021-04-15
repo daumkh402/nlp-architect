@@ -6,15 +6,15 @@ for task in  "cola" "mrpc" "rte" "sst-2" "qqp"  #"sts-b"
 do
     logging_steps=25;
     case $task in 
-    cola) data="CoLA"; logging_steps=530; lr=2e-5;; 
-	mrpc) data="MRPC"; logging_steps=225; lr=3e-5;; 
-	sts-b) data="STS-B"; logging_steps=350; lr=3e-5;;
-    mnli) data="MNLI"; logging_steps=24500; lr=2e-5;;  
-	rte) data="RTE"; logging_steps=150; lr=2e-5;;
-    wnli) data="WNLI"; logging_steps=40; lr=2e-5;;
-    sst-2) data="SST-2"; logging_steps=4200; lr=2e-5;;
-	qqp) data="QQP"; logging_steps=22500; lr=3e-5;;
-	qnli) data="QNLI"; logging_steps=6500; lr=2e-5;;
+    cola) data="CoLA"; logging_steps=40;;				# 
+    mrpc) data="MRPC"; logging_steps=20;; 
+    sts-b) data="STS-B"; logging_steps=40;;
+    mnli) data="MNLI"; logging_steps=2400;;
+    rte) data="RTE"; logging_steps=30;;
+    wnli) data="WNLI"; logging_steps=8;;
+    sst-2) data="SST-2"; logging_steps=100;; 
+    qqp) data="QQP"; logging_steps=2500;; 
+    qnli) data="QNLI"; logging_steps=600;;
     esac
 
     run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}" 
