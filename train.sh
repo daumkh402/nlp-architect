@@ -4,8 +4,7 @@ project_name=FPbert_visualization_
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
 for task in  "sts-b" 
 do
-    logging_steps=25;
-    case $task in 
+       case $task in 
        cola) data="CoLA"; logging_steps=40;;				# 
        mrpc) data="MRPC"; logging_steps=20;; 
        sts-b) data="STS-B"; logging_steps=40;;
@@ -15,7 +14,7 @@ do
        sst-2) data="SST-2"; logging_steps=100;; 
        qqp) data="QQP"; logging_steps=2500;; 
        qnli) data="QNLI"; logging_steps=600;;
-    esac
+       esac
 
     run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}" 
     h=0

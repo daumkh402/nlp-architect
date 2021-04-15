@@ -4,7 +4,7 @@ project_name=Q8bert_EMA_SCALE_batchsize1
 #   "qnli"  "sst-2" "qqp" "wnli" "mnli" 
 for task in "cola"  "mrpc" #"rte" #"sts-b" #"sst-2"   
 do
-    case $task in 
+       case $task in 
        cola) data="CoLA"; logging_steps=40;;				# 
        mrpc) data="MRPC"; logging_steps=20;; 
        sts-b) data="STS-B"; logging_steps=40;;
@@ -14,7 +14,7 @@ do
        sst-2) data="SST-2"; logging_steps=100;; 
        qqp) data="QQP"; logging_steps=2500;; 
        qnli) data="QNLI"; logging_steps=600;;
-    esac
+       esac
 
 	for lr in 2e-5 3e-5 4e-5 5e-5 
 	do

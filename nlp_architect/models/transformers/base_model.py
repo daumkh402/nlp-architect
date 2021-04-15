@@ -112,7 +112,7 @@ class Recorder():
                 handle = layer.register_forward_pre_hook(self.Input_hook(name, dump_interval))
                 self.hook_list.append(handle)
 
-            if 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
+            if 'dense' in name or 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
                 handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
                 self.hook_list.append(handle)
 
@@ -134,10 +134,10 @@ class Recorder():
         return input_strings
 
 
-    def draw(self,data, x, y, ax):
-        seaborn.heatmap(data, 
-                        xticklabels=x, square=True, yticklabels=y,  
-                        cbar=True, ax=ax)
+        def draw(self,data, x, y, ax):
+            seaborn.heatmap(data, 
+                            xticklabels=x, square=True, yticklabels=y,  
+                            cbar=True, ax=ax)
 
 
     def Input_hook(self, layer_name, dump_interval):
@@ -213,17 +213,30 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
-            if self.config.output_hidden_states:
-                attention_weights = output[2]
-            else:
-                attention_weights = output[1]           # tuple of length #num_layer. num_layers x (bsz x num_heads x max_seq x max_seq)
+            # pdb.set_trace()
 
-            pdb.set_trace()
+        
+            if self.dump_distributions:
 
-            
-            # for l in range(len(attention_weights)):
+                if self.config.output_hidden_states:
+                    attention_weights = output[2]
+                else:
+                    attention_weights = output[1]           # tuple of length #num_layer. num_layers x (bsz x num_heads x max_seq x max_seq)  
 
-            # if self.dump_distributions:
+
+                for i,layer in enumerate(attention_weights):
+                    if i == 0:
+                        attentions = layer.unsqueeze(dim=0)
+                    else:
+                        
+                        attentions = torch.cat((attentions, layer.unsqueeze(dim=0)), dim = 0)
+
+                attentions = attentions.clone().cpu().detach()      
+                attentions = torch.mean(attentions,dim=-1)  # num_layers x bsz x num_heads x max_seq
+                attentions = attentions.permute(0,2,1,3)    # num_layers x num_heads x bsz x max_seq
+
+
+
             #     if (self.step_count+1) % dump_interval == 0:
                 # attention weight  
                     # if self.model.config.output_attentions:       #self attention layer
