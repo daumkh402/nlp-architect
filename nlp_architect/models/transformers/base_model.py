@@ -82,7 +82,7 @@ class Recorder():
 
         self.train_task = True
         self.prefix = ['Eval_', 'Train_']
-        self.attentions = {}
+        # self.attentions = {}
         self.input_sequence = None
 
         self.writer = SummaryWriter(writer_dir)
@@ -162,10 +162,8 @@ class Recorder():
             
             
             # if 'key' in layer_name or 'query' in layer_name or 'value' in layer_name:
-            #     pdb.set_trace()
 
             prefix = self.prefix[self.model.training]
-
 
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_mean', torch.mean(module.weight).clone().cpu().data.numpy(), self.step_count)
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_std', torch.std(module.weight).clone().cpu().data.numpy(), self.step_count)
@@ -182,12 +180,8 @@ class Recorder():
                         out_thresh= module.output_thresh.clone().cpu().data.numpy()
                         self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/output_thresh', out_thresh, self.step_count) 
                        
-                    
-            # pdb.set_trace()
-            if self.dump_distributions:
-                if (self.step_count+1) % dump_interval == 0:
-
-                    
+                                if self.dump_distributions:
+                if (self.step_count+1) % dump_interval == 0:                 
                     self.writer.add_histogram(prefix + layer_name + '/weight', 
                                             module.weight.clone().cpu().data.numpy(), 
                                             self.step_count) 
@@ -216,7 +210,7 @@ class Recorder():
 
             prefix = self.prefix[self.model.training]
 
-            pdb.set_trace() 
+            # pdb.set_trace() 
             #if self.dump_distributions:
             if True:
                 if self.config.output_hidden_states:
@@ -238,7 +232,7 @@ class Recorder():
                 attentions = attentions.reshape(new_shape)        # num_layers x num_heads x (bsz * max_seq)
                 attentions = attentions.mean(dim=-1)              # num_layers x num_heads
 
-                pdb.set_trace()
+                # pdb.set_trace()
                 if self.l_to_h_score is None:
                     self.l_to_h_score = attentions
                 else:
