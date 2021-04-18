@@ -97,6 +97,7 @@ class Recorder():
 
         self.writer = SummaryWriter(writer_dir)
         self.l_to_h_score = None
+        self.per_batch_heatmap = True
 
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
@@ -149,9 +150,8 @@ class Recorder():
             if self.train_task != self.model.training :
                 return
 
-            if self.dump_distributions:
-                if (self.step_count+1) % dump_interval == 0:
-                    return
+            if self.dump_distributions and self.per_batch_heatmap:
+                if (self.step_count+1) % dump_interval == 0:                   
                     inp = input[0] if isinstance(input, tuple) else input
                     self.input_sequence = self.convert_tensor_to_string(inp) 
         return hook
@@ -228,17 +228,36 @@ class Recorder():
 
                 attentions = attentions.clone().detach()  
                 attentions = torch.max(attentions,dim=-1).values  # num_layers x bsz x num_heads x max_seq
-                attentions = attentions.permute(0,2,1,3)          # num_layers x num_heads x bsz x max_seq
-                new_shape = attentions.size()
-                new_shape = (new_shape[0],new_shape[1],-1)
-                attentions = attentions.reshape(new_shape)        # num_layers x num_heads x (bsz * max_seq)
-                attentions = attentions.mean(dim=-1)              # num_layers x num_heads
+                # attentions = attentions.permute(0,2,1,3)          # #l x #h x bsz x max_seq
 
                 # pdb.set_trace()
+                attentions = attentions.permute(1,0,2,3)            # bsz x #l x #h x max_seq
+                attentions = attentions.mean(dim=-1)                # bsz x #l x #h
+
+                if self.per_batch_heatmap:
+                    if (self.step_count+1) % dump_interval == 0:
+                        for i, b in enumerate(attentions):
+                            # pdb.set_trace()
+                            seq = ' '.join(self.input_sequence[i])
+                            self.l_to_h_score = b
+                            self.l_to_h_heatmap('batch_' + str(self.step_count) + '/sequence/' + seq)
+
+                
+
+                # # new_shape = attentions.size()
+                # # new_shape = (new_shape[0],new_shape[1],-1)
+                # # attentions = attentions.reshape(new_shape)        # num_layers x num_heads x (bsz * max_seq)
+                # attentions = attentions.mean(dim=-1)              # num_layers x num_heads
+
+                # pdb.set_trace()
+
+                attentions = attentions.mean(dim=0) # #l x #h
                 if self.l_to_h_score is None:
                     self.l_to_h_score = attentions
                 else:
                     self.l_to_h_score = torch.mean(torch.stack((self.l_to_h_score, attentions),dim=0),dim=0)
+
+ 
 
                 
             #     if (self.step_count+1) % dump_interval == 0:
@@ -269,11 +288,11 @@ class Recorder():
 
         return hook
 
-    def l_to_h_heatmap(self):
+    def l_to_h_heatmap(self, heatmap_title = 'layer_to_head avg score'):
         if self.l_to_h_score is not None:
             fig = plt.figure()
             seaborn.heatmap(data=self.l_to_h_score.cpu().numpy(), linewidth=0.5, cbar=True)
-            self.writer.add_figure('layer_to_head score', fig)
+            self.writer.add_figure(heatmap_title, fig)
 
     def remove(self):
         for handle in self.hook_list:
@@ -589,10 +608,10 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                # if global_step == 1:
+                if global_step == 1:
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
-                    # pdb.set_trace()
+                    pdb.set_trace()
 
                 loss = outputs[0]  # get loss
 

@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-project_name=test
+project_name=testtest
 task="rte"
 for i in 1
 do   
@@ -16,7 +16,7 @@ do
        qnli) data="QNLI"; logging_steps=600;;
        esac
 
-       logging_steps=40;
+       logging_steps=1;
        run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
        writer_dir="../tensorboard/${project_name}/${run_name}"
 
@@ -56,5 +56,6 @@ do
               --save_steps 0 \
               --per_gpu_train_batch_size 32 \
               --per_gpu_eval_batch_size 32 \
-	      --dump_distributions
+	       --dump_distributions \
+              --wandb_off
 done 
