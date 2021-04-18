@@ -85,14 +85,17 @@ class Recorder():
         # self.attentions = {}
         self.input_sequence = None
 
-        self.writer = SummaryWriter(writer_dir)
+
 
         self.wandb_off = wandb_off
         self.dump_distributions = dump_distributions
         self.model_type=model_type
         if not self.wandb_off:
-            self.WANDB = wandb.init(name=wandb_run_name, project=wandb_project_name) 
+            self.WANDB = wandb
+            self.WANDB.init(name=wandb_run_name, project=wandb_project_name) 
+            self.WANDB.tensorboard.patch(tensorboardX=False, pytorch=True)
 
+        self.writer = SummaryWriter(writer_dir)
         self.l_to_h_score = None
 
     def WANDB_log(self, tgt, **kwargs):
@@ -160,7 +163,6 @@ class Recorder():
             if self.train_task != self.model.training :
                 return
             
-            
             # if 'key' in layer_name or 'query' in layer_name or 'value' in layer_name:
 
             prefix = self.prefix[self.model.training]
@@ -180,7 +182,7 @@ class Recorder():
                         out_thresh= module.output_thresh.clone().cpu().data.numpy()
                         self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/output_thresh', out_thresh, self.step_count) 
                        
-                                if self.dump_distributions:
+            if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:                 
                     self.writer.add_histogram(prefix + layer_name + '/weight', 
                                             module.weight.clone().cpu().data.numpy(), 
@@ -277,6 +279,7 @@ class Recorder():
         for handle in self.hook_list:
             handle.remove()
         self.writer.close()
+
 
 
 class TransformerBase(TrainableModel):
@@ -630,7 +633,8 @@ class TransformerBase(TrainableModel):
                         ############################################################
                         eval_time_end = time.time()
                         eval_time += eval_time_end - eval_time_start
-                        self.recorder.WANDB_log({"eval_loss":eval_loss})   
+                        # self.recorder.WANDB_log({"eval_loss":eval_loss}) 
+                        self.recorder.writer.add_scalar('stats/eval_loss', eval_loss, self.recorder.step_count)   
                         # pdb.set_trace()
                         ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
@@ -644,7 +648,9 @@ class TransformerBase(TrainableModel):
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
                 ############################################################
-                self.recorder.WANDB_log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                # self.recorder.WANDB_log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                self.recorder.writer.add_scalar("stats/train_loss", tr_loss / global_step, self.recorder.step_count)
+                self.recorder.writer.add_scalar("stats/learning_rate", self.scheduler.get_lr()[0], self.recorder.step_count)
                 ############################################################
                 if 0 < max_steps < global_step:
                     epoch_iterator.close()

@@ -16,7 +16,7 @@ do
        qnli) data="QNLI"; logging_steps=600;;
        esac
 
-       logging_steps=200;
+       logging_steps=40;
        run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
        writer_dir="../tensorboard/${project_name}/${run_name}"
 
@@ -54,8 +54,7 @@ do
               --writer_dir $writer_dir \
               --warmup_steps 0 \
               --save_steps 0 \
-              --per_gpu_train_batch_size 8 \
-              --per_gpu_eval_batch_size 8 \
-              --wandb_off \
+              --per_gpu_train_batch_size 32 \
+              --per_gpu_eval_batch_size 32 \
 	      --dump_distributions
 done 
