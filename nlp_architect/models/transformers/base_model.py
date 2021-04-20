@@ -65,6 +65,8 @@ def get_models(models: List[str]):
 Record=True
 
 class Recorder():
+
+    HM_MODE = ['l_to_h', 'seq_to_seq']
     def __init__(self,
                  tokenizer = None, 
                  wandb_project_name=None,
@@ -84,7 +86,7 @@ class Recorder():
         self.prefix = ['Eval_', 'Train_']
         # self.attentions = {}
         self.input_sequence = None
-
+        self.hm_mode = HM_MODE[0]
 
 
         self.wandb_off = wandb_off
@@ -170,7 +172,7 @@ class Recorder():
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_mean', torch.mean(module.weight).clone().cpu().data.numpy(), self.step_count)
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_std', torch.std(module.weight).clone().cpu().data.numpy(), self.step_count)
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_max', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
-            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
+            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.min(module.weight).clone().cpu().data.numpy(), self.step_count)
          
             if self.model_type == 'quant_bert':
                 self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
@@ -227,12 +229,16 @@ class Recorder():
                         attentions = torch.cat((attentions, layer.unsqueeze(dim=0)), dim = 0)
 
                 attentions = attentions.clone().detach()  
-                attentions = torch.max(attentions,dim=-1).values  # num_layers x bsz x num_heads x max_seq
-                # attentions = attentions.permute(0,2,1,3)          # #l x #h x bsz x max_seq
+                if self.hm_mode = 'l_to_h':
+                    attentions = torch.max(attentions,dim=-1).values  # num_layers x bsz x num_heads x max_seq
+                    # attentions = attentions.permute(0,2,1,3)          # #l x #h x bsz x max_seq
+                    # pdb.set_trace()      
+                    attentions = attentions.permute(1,0,2,3)            # bsz x #l x #h x max_seq
+                    attentions = attentions.mean(dim=-1)                # bsz x #l x #h
 
-                # pdb.set_trace()
-                attentions = attentions.permute(1,0,2,3)            # bsz x #l x #h x max_seq
-                attentions = attentions.mean(dim=-1)                # bsz x #l x #h
+                if self.hm_mode = 'seq_to_seq':
+                    pass
+
 
                 if self.per_batch_heatmap:
                     if (self.step_count+1) % dump_interval == 0:
@@ -288,7 +294,7 @@ class Recorder():
 
         return hook
 
-    def l_to_h_heatmap(self, heatmap_title = 'layer_to_head avg score'):
+    def l_to_h_heatmap(self, heatmap_title = 'layer_to_head_avg_score'):
         if self.l_to_h_score is not None:
             fig = plt.figure()
             seaborn.heatmap(data=self.l_to_h_score.cpu().numpy(), linewidth=0.5, cbar=True)
@@ -608,10 +614,10 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                if global_step == 1:
+                # if global_step == 1:
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
-                    pdb.set_trace()
+                    # pdb.set_trace()
 
                 loss = outputs[0]  # get loss
 

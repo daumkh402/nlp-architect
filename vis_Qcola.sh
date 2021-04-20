@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=0
 
-project_name=FPbert_vis_attentions
+project_name=0418_8bit_vis
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp"              "wnli" "mnli" 
 for task in  "cola" #"sst-2" "qqp"  #"sts-b" 
 do

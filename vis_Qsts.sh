@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=3
 
-project_name=FPbert_vis_attentions
+project_name=0418_8bit_vis
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp"              "wnli" "mnli" 
-for task in  "sts-b" #"sst-2" "qqp"  #"sts-b" 
+for task in  "sst-2" #"sst-2" "qqp"  #"sts-b" 
 do
     logging_steps=25;
     case $task in 
