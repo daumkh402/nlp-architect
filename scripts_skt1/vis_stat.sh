@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=0,1
 
-project_name=FPbert_vis_attentions
+project_name=Freezed_fpbert
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp"              "wnli" "mnli" 
 for task in  "cola" "mrpc" "rte" "sts-b" #"sst-2" "qqp"  #"sts-b" 
 do

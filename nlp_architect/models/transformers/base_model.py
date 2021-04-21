@@ -336,8 +336,9 @@ class TransformerBase(TrainableModel):
         wandb_off=False,
         writer_dir=None,
         dump_distributions=None,
-        qcomp = None
-        ):
+        qcomp = None,
+        freeze_bert=None):
+        
     
         """
         Transformers base model (for working with pytorch-transformers models)
@@ -380,14 +381,16 @@ class TransformerBase(TrainableModel):
 
         ##########################################################################
         # pdb.set_trace()
-        self.config.attention_value["requantize_output"] = qcomp["q_Vout"] 
-        self.config.quant_COM2 = qcomp["q_COM2"]
-        self.config.quant_COM3 = qcomp["q_COM3"]
+        if model_type == 'quant_bert':
+            self.config.attention_value["requantize_output"] = qcomp["q_Vout"] 
+            self.config.quant_COM2 = qcomp["q_COM2"]
+            self.config.quant_COM3 = qcomp["q_COM3"]
 
-        self.config.quant_COM4 = qcomp["q_COM4"]
-        self.config.attention_output["quant_input"] = not qcomp["q_COM4"]
+            # self.config.quant_COM4 = qcomp["q_COM4"]
+            # self.config.attention_output["quant_input"] = not qcomp["q_COM4"]
 
-        self.config.attention_output["requantize_output"] = qcomp["q_COM5"]
+            self.config.attention_output["quant_input"] = qcomp["q_COM4"]
+            self.config.attention_output["requantize_output"] = qcomp["q_COM5"]
         ##########################################################################
 
         self.model = None
@@ -409,8 +412,20 @@ class TransformerBase(TrainableModel):
                                         dump_distributions=dump_distributions,                                
                                         model_type=model_type)
 
+        self.freeze_bert = freeze_bert
         #############################################################################
     
+    def freeze_pretrained(self):
+        for name, param in self.model.named_parameters():
+            if 'classifier' in name:
+               pass
+            else: 
+                param.requires_grad = False
+        
+        #check 
+
+
+
     def to(self, device="cpu", n_gpus=0):
         if self.model is not None:
             self.model.to(device)
@@ -628,10 +643,11 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                # if global_step == 1:
+                # if global_step == 2:
+                #     pdb.set_trace()
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
-                    # pdb.set_trace()
+                    
 
                 loss = outputs[0]  # get loss
 
@@ -679,7 +695,8 @@ class TransformerBase(TrainableModel):
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
                         logging_loss = tr_loss
-
+                        # if global_step == 2:
+                        #     pdb.set_trace()
  
                     if save_steps > 0 and global_step % save_steps == 0:
                         # Save model checkpoint

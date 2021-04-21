@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=3
 project_name=testtest
-task="rte"
+task="sst-2"
 for i in 1
 do   
        # based on batch size 32 
@@ -16,7 +16,7 @@ do
        qnli) data="QNLI"; logging_steps=600;;
        esac
 
-       logging_steps=1;
+       logging_steps=100;
        run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
        writer_dir="../tensorboard/${project_name}/${run_name}"
 
@@ -36,7 +36,7 @@ do
        #               writer_dir="${result_dir}/tensorboard/${h}"
        # done
        
-       for q in "True True True True True"
+       for q in "False False False False True"
        do
        qc=($q)
        run_name="${task}_${i}_loggingstep_${logging_steps}"
@@ -57,10 +57,11 @@ do
               --writer_dir $writer_dir \
               --warmup_steps 0 \
               --save_steps 0 \
-              --per_gpu_train_batch_size 32 \
-              --per_gpu_eval_batch_size 32 \
+              --per_gpu_train_batch_size 16 \
+              --per_gpu_eval_batch_size 16 \
               --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" \
-	       --wandb_off
+	       --wandb_off 
+              # --freeze_bert
              #--dump_distributions \
               #--wandb_off
        done

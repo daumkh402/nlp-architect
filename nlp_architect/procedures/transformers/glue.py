@@ -120,6 +120,12 @@ def add_glue_args(parser: argparse.ArgumentParser):
         "--qcomp",
         type=str
     )
+
+    parser.add_argument(
+    "--freeze_bert",
+    action="store_true",
+    help = "freeze pretrained bert"
+    )
     # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
@@ -166,7 +172,8 @@ def do_training(args):
         task_name=args.task_name,
         writer_dir=args.writer_dir,
         dump_distributions=args.dump_distributions,
-        qcomp = qcomp
+        qcomp = qcomp,
+        freeze_bert=args.freeze_bert
         )
     
 

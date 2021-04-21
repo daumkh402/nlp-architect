@@ -116,6 +116,8 @@ class QuantizedLayer(ABC):
 
         ##
         self.name = None
+
+        ##
     def forward(self, input):
         if self.mode == QuantizationMode.NONE:
             return super().forward(input)
@@ -262,7 +264,8 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         learn quantization ranges if quantization mode is EMA.
         This function should only be used while training"""
         assert self.training, "should only be called when training"
-
+        # if self.name == 'attention_output':
+        #     pdb.set_trace()
 
         if self.quant_input:
             if self.mode == QuantizationMode.EMA:
@@ -276,7 +279,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         if self.quant_input:
             out = F.linear(_fake_quantize(input, input_scale, self.activation_bits), Q_weight, self.bias)
         else:
-            out = F.linear(input,Q_weight,self.bias)
+            out = F.linear(input, Q_weight,self.bias)
 
         if self.requantize_output:                          
             if self.mode == QuantizationMode.EMA:

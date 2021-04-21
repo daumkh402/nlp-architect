@@ -115,7 +115,8 @@ class TransformerSequenceClassifier(TransformerBase):
             self.recorder.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
 
 
-
+        if self.freeze_bert:
+            self.freeze_pretrained()
 
 
         ########################################################################################

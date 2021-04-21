@@ -239,10 +239,10 @@ class QuantizedBertSelfAttention(BertSelfAttention):
 
         #################################### COM4 ####################################
         context_layer = torch.matmul(attention_probs, value_layer)
-        if self.quant_COM4:
-            self.update_ema(self.COM4_thresh, attention_probs.detach())
-            scale = self.get_activation_scale(activation = attention_probs, threshold = self.COM4_thresh)  
-            attention_scores = _fake_quantize(context_layer, scale, 8) 
+        # if self.quant_COM4:
+        #     self.update_ema(self.COM4_thresh, context_layer.detach())
+        #     scale = self.get_activation_scale(activation = context_layer, threshold = self.COM4_thresh)  
+        #     context_layer = _fake_quantize(context_layer, scale, 8) 
   
         self._step += 1                              
         ##############################################################################
@@ -252,6 +252,7 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         context_layer = context_layer.view(*new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if self.output_attentions else (context_layer,)
+        # pdb.set_trace()
         return outputs    
 
 
