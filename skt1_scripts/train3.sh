@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=3
 
 project_name=freezed_fp_bert
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
-for task in  "rte"  
+for task in  "sts-b"  
 do
        case $task in 
        cola) data="CoLA"; lr=2e-5; logging_steps=40;;	 #40      			

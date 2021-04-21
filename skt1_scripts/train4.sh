@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=4
 
 project_name=freezed_fp_bert
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
-for task in  "rte"  
+for task in  "sst-2"  
 do
        case $task in 
        cola) data="CoLA"; lr=2e-5; logging_steps=40;;	 #40      			
@@ -16,7 +16,7 @@ do
        wnli) data="WNLI"; lr=2e-5; logging_steps=8;;      #8   
        esac
 
-    for i in 2 3
+    for i in 1
     do  
         run_name="${task}_${i}_lr_${lr}" 
         h=0

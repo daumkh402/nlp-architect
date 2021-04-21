@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=1
 
 project_name=freezed_fp_bert
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
-for task in  "rte"  
+for task in  "mrpc"  
 do
        case $task in 
        cola) data="CoLA"; lr=2e-5; logging_steps=40;;	 #40      			
@@ -16,7 +16,7 @@ do
        wnli) data="WNLI"; lr=2e-5; logging_steps=8;;      #8   
        esac
 
-    for i in 2 3
+    for i in 2 3 
     do  
         run_name="${task}_${i}_lr_${lr}" 
         h=0
@@ -52,7 +52,7 @@ do
                 --per_gpu_train_batch_size 32 \
                 --per_gpu_eval_batch_size 8  \
                 --writer_dir $writer_dir \
-                --freeze_bert    
+                --freeze_bert  
     done 
 done
 

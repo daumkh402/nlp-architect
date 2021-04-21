@@ -134,8 +134,11 @@ def add_glue_inference_args(parser: argparse.ArgumentParser):
     )
 
 def parse_qcomp(args):
-    from ast import literal_eval
-    return dict(**literal_eval(args.qcomp))
+    if args.model_type == 'quant_bert':
+        from ast import literal_eval
+        return dict(**literal_eval(args.qcomp))
+    else:
+        return 
     
 
 
