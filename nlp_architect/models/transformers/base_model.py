@@ -93,7 +93,7 @@ class Recorder():
         self.model_type=model_type
         if not self.wandb_off:
             self.WANDB = wandb
-            self.WANDB.init(name=wandb_run_name, project=wandb_project_name) 
+            self.WANDB.init(name=wandb_run_name, project=wandb_project_name, dir = '../../') 
             self.WANDB.tensorboard.patch(tensorboardX=False, pytorch=True)
 
         self.writer = SummaryWriter(writer_dir)
@@ -214,8 +214,7 @@ class Recorder():
             prefix = self.prefix[self.model.training]
 
             # pdb.set_trace() 
-            #if self.dump_distributions:
-            if True:
+            if self.dump_distributions:
                 if self.config.output_hidden_states:
                     attention_weights = output[2]
                 else:
