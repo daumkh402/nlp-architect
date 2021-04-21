@@ -63,10 +63,9 @@ def get_models(models: List[str]):
 
 
 Record=True
-
+HM_MODE = ['l_to_h', 'seq_to_seq']
 class Recorder():
 
-    HM_MODE = ['l_to_h', 'seq_to_seq']
     def __init__(self,
                  tokenizer = None, 
                  wandb_project_name=None,
@@ -99,7 +98,7 @@ class Recorder():
 
         self.writer = SummaryWriter(writer_dir)
         self.l_to_h_score = None
-        self.per_batch_heatmap = True
+        self.per_batch_heatmap = False
 
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
@@ -173,7 +172,7 @@ class Recorder():
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_std', torch.std(module.weight).clone().cpu().data.numpy(), self.step_count)
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_max', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
             self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.min(module.weight).clone().cpu().data.numpy(), self.step_count)
-         
+        
             if self.model_type == 'quant_bert':
                 self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
                 if 'embeddings' not in layer_name: # for linear layer
@@ -229,14 +228,14 @@ class Recorder():
                         attentions = torch.cat((attentions, layer.unsqueeze(dim=0)), dim = 0)
 
                 attentions = attentions.clone().detach()  
-                if self.hm_mode = 'l_to_h':
+                if self.hm_mode == 'l_to_h':
                     attentions = torch.max(attentions,dim=-1).values  # num_layers x bsz x num_heads x max_seq
                     # attentions = attentions.permute(0,2,1,3)          # #l x #h x bsz x max_seq
                     # pdb.set_trace()      
                     attentions = attentions.permute(1,0,2,3)            # bsz x #l x #h x max_seq
                     attentions = attentions.mean(dim=-1)                # bsz x #l x #h
 
-                if self.hm_mode = 'seq_to_seq':
+                if self.hm_mode == 'seq_to_seq':
                     pass
 
 
@@ -336,7 +335,9 @@ class TransformerBase(TrainableModel):
         wandb_run_name=None,
         wandb_off=False,
         writer_dir=None,
-        dump_distributions=None):
+        dump_distributions=None,
+        qcomp = None
+        ):
     
         """
         Transformers base model (for working with pytorch-transformers models)
@@ -377,6 +378,13 @@ class TransformerBase(TrainableModel):
         self.config_name = config_name
         self.config = self._load_config(config_name)
 
+        ##########################################################################
+        self.config.attention_value["requantize_output"] = (qcomp["q_Vout"] == 'True')
+        self.config.quant_COM2 = (qcomp["q_COM2"] == 'True')
+        self.config.quant_COM3 = (qcomp["q_COM3"] == 'True')
+        #self.config.ffn_output.requantize_output = (qcomp["q_COM5"] == 'True')
+        ##########################################################################
+
         self.model = None
         self.device = device
         self.n_gpus = n_gpus
@@ -397,6 +405,7 @@ class TransformerBase(TrainableModel):
                                         model_type=model_type)
 
         #############################################################################
+    
     def to(self, device="cpu", n_gpus=0):
         if self.model is not None:
             self.model.to(device)

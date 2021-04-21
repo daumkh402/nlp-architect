@@ -115,12 +115,22 @@ def add_glue_args(parser: argparse.ArgumentParser):
     action="store_true",
     help = "dump weight/feature distributions"
     )   
+
+    parser.add_argument(
+        "--qcomp",
+        type=str
+    )
     # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--evaluate", action="store_true", help="Evaluate the model on the task's development set"
     )
+
+def parse_qcomp(args):
+    from ast import literal_eval
+    return dict(**literal_eval(args.qcomp))
+    
 
 
 def do_training(args):
@@ -135,6 +145,7 @@ def do_training(args):
 
     ##
     data_dir = args.data_dir
+    qcomp = parse_qcomp(args)
     ##
     classifier = TransformerSequenceClassifier(
         model_type=args.model_type,
@@ -154,7 +165,8 @@ def do_training(args):
         wandb_off=args.wandb_off,
         task_name=args.task_name,
         writer_dir=args.writer_dir,
-        dump_distributions=args.dump_distributions
+        dump_distributions=args.dump_distributions,
+        qcomp = qcomp
         )
     
 

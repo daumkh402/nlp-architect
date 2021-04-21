@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 project_name=testtest
 task="rte"
 for i in 1
@@ -35,7 +35,10 @@ do
        #               h=$((h+1))
        #               writer_dir="${result_dir}/tensorboard/${h}"
        # done
-
+       
+       for q in "True False False" "True True False" "True True True"
+       do
+       qc=($q)
        run_name="${task}_${i}_loggingstep_${logging_steps}"
        nlp-train transformer_glue \
               --task_name ${task} \
@@ -56,6 +59,10 @@ do
               --save_steps 0 \
               --per_gpu_train_batch_size 32 \
               --per_gpu_eval_batch_size 32 \
-	       --dump_distributions \
-              --wandb_off
+              --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}}" \
+	       --wandb_off
+             #--dump_distributions \
+              #--wandb_off
+       done
+
 done 

@@ -53,6 +53,8 @@ from nlp_architect.nn.torch.quantization import (
 )
 
 import pdb
+from nlp_architect.nn.torch.quantization import _fake_quantize, get_dynamic_scale, get_scale
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +115,7 @@ class QuantizedBertEmbeddings(BertEmbeddings):
 
 
 class QuantizedBertSelfAttention(BertSelfAttention):
-    def __init__(self, config):
+    def __init__(self, config, start_step=0):
         super(BertSelfAttention, self).__init__()
         if config.hidden_size % config.num_attention_heads != 0:
             raise ValueError(
@@ -139,6 +141,115 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         )
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+
+        #################################################################
+        # pdb.set_trace()
+        self.qmode = 'EMA'
+        self.start_step = start_step
+        self.register_buffer("_step", torch.zeros(1))
+        self.quant_COM2 = config.quant_COM2
+        self.quant_COM3 = config.quant_COM3
+        self.register_buffer("COM2_thresh", torch.zeros(1))
+        self.register_buffer("COM3_thresh", torch.zeros(1))
+        #self.register_buffer("COM4_thresh", torch.zeros(1))
+        #################################################################
+
+    def update_ema(self, ema, input, reduce_fn=lambda x: x.abs().max()):
+        """Update exponential moving average (EMA) of activations thresholds.
+        the reduce_fn calculates the current threshold from the input tensor"""
+        assert self._step >= self.start_step
+        if self._step == self.start_step:
+            ema.fill_(reduce_fn(input))
+        else:
+            ema.sub_((1 - self.ema_decay) * (ema - reduce_fn(input)))  
+
+    def get_activation_scale(self, activation, threshold):
+        if self.qmode == "DYNAMIC":
+            scale = get_dynamic_scale(activation, self.activation_bits)
+        elif self.qmode == "EMA":
+            scale = get_scale(bits=8,threshold=threshold)
+        return scale
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,):
+    
+        # pdb.set_trace()
+        mixed_query_layer = self.query(hidden_states)
+
+        # If this is instantiated as a cross-attention module, the keys
+        # and values come from an encoder; the attention mask needs to be
+        # such that the encoder's padding tokens are not attended to.
+        if encoder_hidden_states is not None:
+            mixed_key_layer = self.key(encoder_hidden_states)
+            mixed_value_layer = self.value(encoder_hidden_states)
+            attention_mask = encoder_attention_mask
+        else:
+            mixed_key_layer = self.key(hidden_states)
+            mixed_value_layer = self.value(hidden_states)
+
+        query_layer = self.transpose_for_scores(mixed_query_layer)      # bsz(32) x num_attention_heads(12) x max_seq(128) x head_size(64)
+        key_layer = self.transpose_for_scores(mixed_key_layer)
+        value_layer = self.transpose_for_scores(mixed_value_layer)
+
+        # Take the dot product between "query" and "key" to get the raw attention scores.
+
+        #################################### COM2 ####################################
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+
+        # pdb.set_trace()
+        if self.quant_COM2:
+            self.update_ema(self.COM2_thresh, attention_scores.detach())
+            scale = self.get_activation_scale(activation = attention_scores, threshold = self.COM2_thresh)        
+            attention_scores = _fake_quantize(attention_scores, scale, 8)                                                                                  
+        ##############################################################################
+
+        #################################### COM3 ####################################
+        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+
+        if attention_mask is not None:
+            # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
+            attention_scores = attention_scores + attention_mask
+
+        # Normalize the attention scores to probabilities.
+        attention_probs = nn.Softmax(dim=-1)(attention_scores)
+
+        # This is actually dropping out entire tokens to attend to, which might
+        # seem a bit unusual, but is taken from the original Transformer paper.
+        attention_probs = self.dropout(attention_probs)
+
+        if self.quant_COM3:
+            self.update_ema(self.COM3_thresh, attention_probs.detach())
+            scale = self.get_activation_scale(activation = attention_probs, threshold = self.COM3_thresh)       
+            attention_probs = _fake_quantize(attention_probs, scale, 8)                                                                                     
+        ##############################################################################
+        # Mask heads if we want to
+        if head_mask is not None:
+            attention_probs = attention_probs * head_mask
+
+        #################################### COM4 ####################################
+        context_layer = torch.matmul(attention_probs, value_layer)
+
+        # input quantized at self.output_attention
+        # scale -> self.output_attention.input_thresh 
+        # if self.quant_COM4:
+        #     self.update_ema(self.COM3_thresh, attention_probs.detach())
+            # attention_scores = _fake_quantize(input = context_layer, 
+            #                                   scale = scale,
+            #                                   bits=8)       
+        self._step += 1                              
+        ##############################################################################
+
+        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        context_layer = context_layer.view(*new_context_layer_shape)
+
+        outputs = (context_layer, attention_probs) if self.output_attentions else (context_layer,)
+        return outputs    
 
 
 class QuantizedBertSelfOutput(BertSelfOutput):
