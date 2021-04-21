@@ -36,7 +36,7 @@ do
        #               writer_dir="${result_dir}/tensorboard/${h}"
        # done
        
-       for q in "True False False" "True True False" "True True True"
+       for q in "True True True"
        do
        qc=($q)
        run_name="${task}_${i}_loggingstep_${logging_steps}"

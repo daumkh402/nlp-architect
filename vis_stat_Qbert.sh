@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=3
 
-project_name=0420_Qcomp
+project_name=0420_Qcomp_
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
 for task in  "sst-2" 
 do
@@ -17,14 +17,13 @@ do
        wnli) data="WNLI"; lr=2e-5; logging_steps=8;;      #8      
     esac
 
-    for i in 1 2 3
-    do  
 
-        for q in "True False False" "True True False" "True True True"
-        do
-            qc=($q)
+    for q in "True False False" "True True False" "True True True"
+    do
+        qc=($q)
+        for i in 1 2 3
+        do  
             run_name="${task}_${i}_lr_${lr}_qc_${qc[0]}${qc[1]}${qc[2]}_log_${logging_steps}" 
-
             h=0
             writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
             while [ -d ${writer_dir} ]
@@ -61,9 +60,7 @@ do
                     --writer_dir ${writer_dir} \
                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}}" \
                     --dump_distributions
-
         done
-	
-    done 
+    done  
 done
 
