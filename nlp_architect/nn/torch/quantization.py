@@ -56,7 +56,6 @@ def quantize(input, scale, bits):
     thresh = calc_max_quant_value(bits)
     return input.mul(scale).round().clamp(-thresh, thresh)
 
-
 def dequantize(input, scale):
     """linear dequantization according to some scale"""
     return input.div(scale)
@@ -114,6 +113,9 @@ class QuantizedLayer(ABC):
         # register saving hook
         self._register_state_dict_hook(self._state_dict_hook)
 
+
+        ##
+        self.name = None
     def forward(self, input):
         if self.mode == QuantizationMode.NONE:
             return super().forward(input)
@@ -214,11 +216,17 @@ class QuantizedLayer(ABC):
 class QuantizedLinear(QuantizedLayer, nn.Linear):
     """Linear layer with quantization aware training capability"""
 
+    # CONFIG_ATTRIBUTES = QuantizedLayer.CONFIG_ATTRIBUTES + [
+    #     "activation_bits",
+    #     "requantize_output",
+    #     "ema_decay",]
     CONFIG_ATTRIBUTES = QuantizedLayer.CONFIG_ATTRIBUTES + [
-        "activation_bits",
-        "requantize_output",
-        "ema_decay",]
-    
+    "activation_bits",
+    "requantize_output",
+    "ema_decay",
+    "quant_input",
+    "quant_weight",]
+
     REPR_ATTRIBUTES = QuantizedLayer.REPR_ATTRIBUTES + [
         "activation_bits",
         "accumulation_bits",
@@ -227,7 +235,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
     
 
     def __init__(
-        self, *args, activation_bits=8, requantize_output=True, ema_decay=0.9999, **kwargs):
+        self, *args, activation_bits=8, requantize_output=True, ema_decay=0.9999, quant_input=True, quant_weight=True, **kwargs):
     
         super().__init__(*args, **kwargs)
         if activation_bits < 2:
@@ -244,31 +252,37 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
             self.register_buffer("_quantized_bias", None)
             self.register_buffer("bias_scale", None)
         # pdb.set_trace()
+        #######################
+        self.quant_input = quant_input
+        self.quant_weight = quant_weight
 
+        ######################
     def training_quantized_forward(self, input):
         """fake quantized forward, fake quantizes weights and activations,
         learn quantization ranges if quantization mode is EMA.
         This function should only be used while training"""
         assert self.training, "should only be called when training"
-        if self.mode == QuantizationMode.EMA:
-            self._update_ema(self.input_thresh, input.detach())
-        input_scale = self._get_input_scale(input) 
 
 
-        Q_weight = self.fake_quantized_weight   
-        out = F.linear(
-            _fake_quantize(input, input_scale, self.activation_bits),
-            Q_weight,
-            self.bias,
-        )
-        # pdb.set_trace()
+        if self.quant_input:
+            if self.mode == QuantizationMode.EMA:
+                self._update_ema(self.input_thresh, input.detach())             
+            input_scale = self._get_input_scale(input) 
+
+        Q_weight = self.weight
+        if self.quant_weight:
+            Q_weight = self.fake_quantized_weight  
+
+        if self.quant_input:
+            out = F.linear(_fake_quantize(input, input_scale, self.activation_bits), Q_weight, self.bias)
+        else:
+            out = F.linear(input,Q_weight,self.bias)
 
         if self.requantize_output:                          
             if self.mode == QuantizationMode.EMA:
                 self._update_ema(self.output_thresh, out.detach())
             out = _fake_quantize(out, self._get_output_scale(out), self.activation_bits)
-
-        
+ 
         return out
 
     def inference_quantized_forward(self, input):
@@ -407,4 +421,6 @@ class QuantizationConfig(Config):
         "start_step": 0,
         "ema_decay": 0.9999,
         "requantize_output": True,
+        "quant_input" : True,
+        "quant_weight" : True,
     }

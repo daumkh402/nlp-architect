@@ -70,7 +70,7 @@ def quantized_linear_setup(config, name, *args, **kwargs):
     """
     Get QuantizedLinear layer according to config params
     """
-    
+    # pdb.set_trace()
     try:
         ## config.__class__ :  <class 'nlp_architect.models.transformers.quantized_bert.QuantizedBertConfig'>
         quant_config = QuantizationConfig.from_dict(getattr(config, name))
@@ -78,6 +78,8 @@ def quantized_linear_setup(config, name, *args, **kwargs):
         linear = QuantizedLinear.from_config(*args, **kwargs, config=quant_config)
     except AttributeError:
         linear = nn.Linear(*args, **kwargs)
+
+    linear.name = name
     return linear
 
 
@@ -90,6 +92,7 @@ def quantized_embedding_setup(config, name, *args, **kwargs):
         embedding = QuantizedEmbedding.from_config(*args, **kwargs, config=quant_config)
     except AttributeError:
         embedding = nn.Embedding(*args, **kwargs)
+    embedding.name=name
     return embedding
 
 
@@ -115,7 +118,7 @@ class QuantizedBertEmbeddings(BertEmbeddings):
 
 
 class QuantizedBertSelfAttention(BertSelfAttention):
-    def __init__(self, config, start_step=0):
+    def __init__(self, config, start_step=0, ema_decay=0.9999):
         super(BertSelfAttention, self).__init__()
         if config.hidden_size % config.num_attention_heads != 0:
             raise ValueError(
@@ -145,13 +148,16 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         #################################################################
         # pdb.set_trace()
         self.qmode = 'EMA'
-        self.start_step = start_step
         self.register_buffer("_step", torch.zeros(1))
         self.quant_COM2 = config.quant_COM2
         self.quant_COM3 = config.quant_COM3
+        self.quant_COM4 = config.quant_COM3
         self.register_buffer("COM2_thresh", torch.zeros(1))
         self.register_buffer("COM3_thresh", torch.zeros(1))
-        #self.register_buffer("COM4_thresh", torch.zeros(1))
+        self.register_buffer("COM4_thresh", torch.zeros(1))
+        self.start_step = start_step
+        self.ema_decay = ema_decay
+
         #################################################################
 
     def update_ema(self, ema, input, reduce_fn=lambda x: x.abs().max()):
@@ -167,7 +173,7 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         if self.qmode == "DYNAMIC":
             scale = get_dynamic_scale(activation, self.activation_bits)
         elif self.qmode == "EMA":
-            scale = get_scale(bits=8,threshold=threshold)
+            scale = get_scale(bits=8, threshold=threshold)
         return scale
 
     def forward(
@@ -233,14 +239,11 @@ class QuantizedBertSelfAttention(BertSelfAttention):
 
         #################################### COM4 ####################################
         context_layer = torch.matmul(attention_probs, value_layer)
-
-        # input quantized at self.output_attention
-        # scale -> self.output_attention.input_thresh 
-        # if self.quant_COM4:
-        #     self.update_ema(self.COM3_thresh, attention_probs.detach())
-            # attention_scores = _fake_quantize(input = context_layer, 
-            #                                   scale = scale,
-            #                                   bits=8)       
+        if self.quant_COM4:
+            self.update_ema(self.COM4_thresh, attention_probs.detach())
+            scale = self.get_activation_scale(activation = attention_probs, threshold = self.COM4_thresh)  
+            attention_scores = _fake_quantize(context_layer, scale, 8) 
+  
         self._step += 1                              
         ##############################################################################
 

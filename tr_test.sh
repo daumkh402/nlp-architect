@@ -36,7 +36,7 @@ do
        #               writer_dir="${result_dir}/tensorboard/${h}"
        # done
        
-       for q in "True True True"
+       for q in "True True True True True"
        do
        qc=($q)
        run_name="${task}_${i}_loggingstep_${logging_steps}"
@@ -59,7 +59,7 @@ do
               --save_steps 0 \
               --per_gpu_train_batch_size 32 \
               --per_gpu_eval_batch_size 32 \
-              --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}}" \
+              --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" \
 	       --wandb_off
              #--dump_distributions \
               #--wandb_off

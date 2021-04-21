@@ -382,8 +382,12 @@ class TransformerBase(TrainableModel):
         # pdb.set_trace()
         self.config.attention_value["requantize_output"] = qcomp["q_Vout"] 
         self.config.quant_COM2 = qcomp["q_COM2"]
-        self.config.quant_COM3 = qcomp["q_COM3"] 
-        #self.config.ffn_output.requantize_output = (qcomp["q_COM5"] == 'True')
+        self.config.quant_COM3 = qcomp["q_COM3"]
+
+        self.config.quant_COM4 = qcomp["q_COM4"]
+        self.config.attention_output["quant_input"] = not qcomp["q_COM4"]
+
+        self.config.attention_output["requantize_output"] = qcomp["q_COM5"]
         ##########################################################################
 
         self.model = None
