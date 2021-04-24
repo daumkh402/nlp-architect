@@ -43,7 +43,8 @@ import time
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import seaborn
-
+import numpy as np
+import pickle
 logger = logging.getLogger(__name__)
 
 
@@ -72,7 +73,7 @@ class Recorder():
                  wandb_run_name=None,
                  wandb_off=False,
                  writer_dir='',
-                 dump_distributions=None,
+                 dump_distributions=False,
                  model_type=None):
 
         self.hook_list = []
@@ -80,9 +81,7 @@ class Recorder():
         self.model = None
         self.config=None
         self.tokenizer = tokenizer
-
         self.train_task = True
-        self.prefix = ['Eval_', 'Train_']
         # self.attentions = {}
         self.input_sequence = None
         self.hm_mode = HM_MODE[0]
@@ -91,6 +90,8 @@ class Recorder():
         self.wandb_off = wandb_off
         self.dump_distributions = dump_distributions
         self.model_type=model_type
+        self.wandb_project_name = wandb_project_name
+        self.wandb_run_name = wandb_run_name
         if not self.wandb_off:
             self.WANDB = wandb
             self.WANDB.init(name=wandb_run_name, project=wandb_project_name, dir = '../../') 
@@ -100,6 +101,12 @@ class Recorder():
         self.l_to_h_score = None
         self.per_batch_heatmap = False
 
+        self.pstat_by_layer = { 'Embedding'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},                                              
+                                'Attention'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},   
+                                'FeedForward' : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},
+                                'Pooler'      : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]} 
+                              }
+        
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
             return
@@ -126,7 +133,6 @@ class Recorder():
                 handle = layer.register_forward_hook(self.encoder_hook(name, dump_interval))
                 self.hook_list.append(handle)   
                 
-
     def convert_tensor_to_string(self, input):    
         input_strings = []
         for sequence in input:
@@ -145,10 +151,9 @@ class Recorder():
                             xticklabels=x, square=True, yticklabels=y,  
                             cbar=True, ax=ax)
 
-
     def Input_hook(self, layer_name, dump_interval):
         def hook(module, input):
-            if self.train_task != self.model.training :
+            if not self.model.training :
                 return
 
             if self.dump_distributions and self.per_batch_heatmap:
@@ -157,36 +162,174 @@ class Recorder():
                     self.input_sequence = self.convert_tensor_to_string(inp) 
         return hook
 
+    def cal_pstats(self, param):
+        p_mean = torch.mean(param).detach()
+        p_std = torch.std(param).detach().cpu()
+        p_min = torch.min(param).detach().cpu().data.numpy()
+        p_max = torch.max(param).detach().cpu().data.numpy()
+        
+        
+        p_diffs = (param - p_mean).detach().cpu()
+        p_zscores = p_diffs / p_std 
+        p_skews = torch.mean(torch.pow(p_zscores,3.0)).cpu().data.numpy()
+
+
+        p_mean = p_mean.cpu().data.numpy()
+        p_std = p_std.cpu().data.numpy()
+
+        # pdb.set_trace()
+        
+        return p_max, p_min, p_mean, p_std, p_skews
+
+    def rec_pstat(self):
+        rec_name = False
+
+        if self.pstat_by_layer['Embedding']['name'] == []:
+            rec_name = True
+        for group in self.pstat_by_layer.keys():      # key : Embedding, Attention, FeedForward
+            self.pstat_by_layer[group]['max'] = []
+            self.pstat_by_layer[group]['min'] = []
+            self.pstat_by_layer[group]['mean'] = []
+            self.pstat_by_layer[group]['std'] = []
+            self.pstat_by_layer[group]['skew'] = []
+
+        for n , p in self.model.named_parameters(): 
+            if 'weight' not in n:
+                continue
+
+            name, group = self.parse_lname(n)
+            if name is None:
+                continue
+
+            pmax, pmin, pmean, pstd, pskews = self.cal_pstats(p)
+            self.pstat_by_layer[group]['max'].append(pmax)
+            self.pstat_by_layer[group]['min'].append(pmin)
+            self.pstat_by_layer[group]['mean'].append(pmean)
+            self.pstat_by_layer[group]['std'].append(pstd)
+            self.pstat_by_layer[group]['skew'].append(pskews)
+            if rec_name:
+                self.pstat_by_layer[group]['name'].append(name)
+
+    def save_pstat(self):
+        from datetime import date
+        today = (date.today()).strftime("%Y%m%d")
+
+        save_dir = os.path.join('../../nlp_arch_results/wstat/', self.wandb_project_name, today)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_file = os.path.join(save_dir, self.wandb_run_name + '.pickle')
+        with open( save_file, 'wb') as f:
+            pickle.dump(self.pstat_by_layer, f)
+
+    def pstat_to_tensorboard(self):
+        for group, gdata in self.pstat_by_layer.items():    # Embedding, Attention, FeedForward
+            for k,v in gdata.items():   #name, max, min, mean, std, skew
+                if k == 'name':
+                    name = v
+                    length = len(name)
+                    # pdb.set_trace()
+                else:   
+                    # fig, ax = plt.subplots(1,1,figsize=(20,5))
+                    # ax.set_xticks(np.arange(length))
+                    # ax.set_xticklabels(name, rotation='vertical',fontsize=8)
+                    # plt.bar(name, v)
+                    # for index, data in enumerate(v):
+                    #     plt.text(x = index, y = data, s="{:.5e}".format(data) , fontdict=dict(fontsize=6))
+                    # self.writer.add_figure(group+'/'+str(k), fig) 
+                    if self.WANDB: 
+                        data = [[x,y.item()] for (x,y) in zip(name,v)]
+                        table = self.WANDB.Table(data=data, columns=["layer", "value"])
+                        hist_title = group + '/' + k                      
+                        fields = {"label" : "layer",
+                                  "value" : "value"}
+                        custom_chart = self.WANDB.plot_table(vega_spec_name="weight_stats",
+                                                             data_table=table, 
+                                                             fields = fields,
+                                                             string_fields={'title' : hist_title})
+                        self.WANDB.log({hist_title : custom_chart})
+                        # if group == 'FeedForward' and k == 'mean':
+                        #     pdb.set_trace()
+                        # hist = self.WANDB.plot.bar(table, "layer", "value", title="test")
+                        # self.WANDB.log({hist_title : hist})
+
+    def parse_lname(self, lname):
+        parsed = ''
+        parsed = lname.split('.')
+        parsed = parsed[:-1] if 'weight' in parsed else parsed
+
+        name = None
+        group = None
+        if '_embeddings' in lname:   
+            group = 'Embedding'
+            name = parsed[2].split('_')[0] #word, position, token
+
+        if 'encoder' in lname:
+            lnum = parsed[3]
+            if lnum == '10':
+                lnum = 'X0'
+            if lnum == '11':
+                lnum = 'X1' 
+
+            if parsed[-1] in ['query', 'key', 'value']:
+                group = 'Attention'
+                ltype = '_' + parsed[-1]
+                name = 'L' + lnum + ltype
+
+            elif 'attention.output.dense' in lname:
+                group = 'Attention'
+                name = 'L' + lnum + '_AO'
+
+            elif 'intermediate.dense' in lname: 
+                group = 'FeedForward'
+                name = 'L' + lnum + '_FFN0'
+
+            elif ('output.dense' in lname and 'attention' not in lname):
+                group = 'FeedForward'
+                name = 'L' + lnum + '_FFN1'
+            
+            else:
+                pass
+
+        elif 'pooler.dense' in lname:
+            group = 'Pooler'
+            name = 'pooler' 
+        
+        else:
+            pass
+
+        return name, group
 
     def QLayer_hook(self, layer_name, dump_interval):    
         def hook(module, input, output):
 
-            if self.train_task != self.model.training :
+            if not self.model.training :
                 return
             
-            # if 'key' in layer_name or 'query' in layer_name or 'value' in layer_name:
+            wmax, wmin, wmean, wstd, wskews = self.cal_pstats(module.weight)
+            # if 'pooler' in layer_name:
+            #     pdb.set_trace()
 
-            prefix = self.prefix[self.model.training]
+            name, _ = self.parse_lname(layer_name)
 
-            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_mean', torch.mean(module.weight).clone().cpu().data.numpy(), self.step_count)
-            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_std', torch.std(module.weight).clone().cpu().data.numpy(), self.step_count)
-            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_max', torch.max(module.weight).clone().cpu().data.numpy(), self.step_count)
-            self.writer.add_scalar(prefix  + layer_name +'_weight_statistics/weight_min', torch.min(module.weight).clone().cpu().data.numpy(), self.step_count)
+            self.writer.add_scalar(name + '_stats/w_mean', wmean, self.step_count)
+            self.writer.add_scalar(name +'_stats/w_std', wstd, self.step_count)
+            self.writer.add_scalar(name +'_stats/w_max', wmax, self.step_count)
+            self.writer.add_scalar(name +'_stats/w_min', wmin, self.step_count)
         
             if self.model_type == 'quant_bert':
-                self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/weight_scale', module.weight_scale.clone().cpu().data.numpy(), self.step_count)
+                self.writer.add_scalar(name + '_stats/w_scale', module.weight_scale.clone().detach().cpu().data.numpy(), self.step_count)
                 if 'embeddings' not in layer_name: # for linear layer
-                    in_thresh = module.input_thresh.clone().cpu().data.numpy()
-                    self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/input_thresh', in_thresh, self.step_count)
+                    in_thresh = module.input_thresh.clone().detach().cpu().data.numpy()
+                    self.writer.add_scalar(name + '_stats/i_thresh', in_thresh, self.step_count)
 
                     if hasattr(module, 'output_thresh'):
-                        out_thresh= module.output_thresh.clone().cpu().data.numpy()
-                        self.writer.add_scalar(prefix  + layer_name + '_weight_statistics/output_thresh', out_thresh, self.step_count) 
+                        out_thresh= module.output_thresh.clone().detach().cpu().data.numpy()
+                        self.writer.add_scalar(name + '_stats/o_thresh', out_thresh, self.step_count) 
                        
             if self.dump_distributions:
                 if (self.step_count+1) % dump_interval == 0:                 
-                    self.writer.add_histogram(prefix + layer_name + '/weight', 
-                                            module.weight.clone().cpu().data.numpy(), 
+                    self.writer.add_histogram(name + '/w_hist', 
+                                            module.weight.clone().detach().cpu().data.numpy(), 
                                             self.step_count) 
 
                     if 'embeddings' not in layer_name: # for linear layer
@@ -194,24 +337,21 @@ class Recorder():
                         inp = input[0] if isinstance(input, tuple) else input
                         out = output[0] if isinstance(output, tuple) else output
 
-                        self.writer.add_histogram(prefix + layer_name + '/out', 
-                                                output.clone().cpu().data.numpy(), 
+                        self.writer.add_histogram(name + '/o_hist', 
+                                                output.clone().detach().cpu().data.numpy(), 
                                                 self.step_count)
 
-                        self.writer.add_histogram(prefix + layer_name + '/in', 
-                                                inp.clone().cpu().data.numpy(), 
+                        self.writer.add_histogram(name + '/i_hist', 
+                                                inp.clone().detach().cpu().data.numpy(), 
                                                 self.step_count) 
 
                                                 
         return hook
     
-    
     def encoder_hook(self, layer_name, dump_interval):
         def hook(module, input, output) :
-            if self.train_task != self.model.training :
+            if not self.model.training :
                 return
-
-            prefix = self.prefix[self.model.training]
 
             # pdb.set_trace() 
             if self.dump_distributions:
@@ -302,7 +442,6 @@ class Recorder():
         for handle in self.hook_list:
             handle.remove()
         self.writer.close()
-
 
 
 class TransformerBase(TrainableModel):
@@ -620,14 +759,14 @@ class TransformerBase(TrainableModel):
         pure_training_time = 0
         eval_time = 0
 
-        # # pdb.set_trace()
-        # for name,layer in self.model.named_modules():
-        #     pdb.set_trace()
-
+        #####
         if Record:
             self.recorder.register(model=self.model, config=self.config, dump_interval=logging_steps)
 
-        #
+        best_step = 0
+        prev_best_eval = 0.0
+
+        #####
         for epoch, _ in enumerate(train_iterator):
             print("****** Epoch: " + str(epoch))
             epoch_iterator = tqdm(data_set, desc="Train iteration")       
@@ -642,8 +781,9 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                # if global_step == 2:
-                #     pdb.set_trace()
+                if global_step == logging_steps + 1:
+                    # pdb.set_trace()
+                    break
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
                     
@@ -688,6 +828,11 @@ class TransformerBase(TrainableModel):
                         eval_time_end = time.time()
                         eval_time += eval_time_end - eval_time_start
                         # self.recorder.WANDB_log({"eval_loss":eval_loss}) 
+                        if prev_best_eval != best_dev:
+                            best_step = global_step
+                            prev_best_eval = best_dev
+                            self.recorder.rec_pstat()
+
                         self.recorder.writer.add_scalar('stats/eval_loss', eval_loss, self.recorder.step_count)   
                         # pdb.set_trace()
                         ############################################################
@@ -719,6 +864,7 @@ class TransformerBase(TrainableModel):
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
+        logger.info("best_dev = {} at step = {}".format(prev_best_eval, global_step))
         tr_hour = int(pure_training_time / 3600)
         tr_minute = int((pure_training_time % 3600) / 60)
         tr_second = int(pure_training_time % 60)
@@ -739,6 +885,8 @@ class TransformerBase(TrainableModel):
 
         if Record:
             self.recorder.l_to_h_heatmap()
+            self.recorder.save_pstat()
+            self.recorder.pstat_to_tensorboard()
             self.recorder.remove()
 
     def update_best_model(
@@ -773,6 +921,7 @@ class TransformerBase(TrainableModel):
                     set_test = True
                     if save_path is not None:
                         self.save_model(save_path, args=self.training_args)
+
                 elif set_test:
                     new_test_dev = f1
                     set_test = False

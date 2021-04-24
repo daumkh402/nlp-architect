@@ -108,9 +108,12 @@ class TransformerSequenceClassifier(TransformerBase):
         self.task_type = task_type
         self.metric_fn = metric_fn
         self.to(self.device, self.n_gpus)
-        # pdb.set_trace()
-        ########################################################################################
 
+
+        ########################################################################################
+        # for n,p in self.model.named_parameters():
+        #     print(n)
+        # pdb.set_trace()
         if not self.recorder.wandb_off:
             self.recorder.WANDB.watch(self.model, log_freq = 50)  # log_freq default 100
 

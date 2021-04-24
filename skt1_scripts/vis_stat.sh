@@ -19,16 +19,16 @@ do
 
     run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}" 
     h=0
-    writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+    writer_dir="../../tensorboard/${project_name}/${run_name}_${h}"
     while [ -d ${writer_dir} ]
     do
         h=$((h+1))
-        writer_dir="../tensorboard/${project_name}/${run_name}_${h}"
+        writer_dir="../../tensorboard/${project_name}/${run_name}_${h}"
     done
 
     for i in 1
     do  
-	result_dir="../nlp_arch_results/${project_name}/${task}/lr_${lr}/${i}"
+	result_dir="../../nlp_arch_results/${project_name}/${task}/lr_${lr}/${i}"
 	if [ ! -d ${result_dir} ]
 	then
            echo "${result_dir} does not exist"
