@@ -242,12 +242,12 @@ class Recorder():
                         hist_title = group + '/' + k                      
                         fields = {"label" : "layer",
                                   "value" : "value"}
-                        custom_chart = self.WANDB.plot_table(vega_spec_name="weight_stats",
+                        custom_chart = self.WANDB.plot_table(vega_spec_name="maruebaleitni/weight",
                                                              data_table=table, 
                                                              fields = fields,
                                                              string_fields={'title' : hist_title})
                         self.WANDB.log({hist_title : custom_chart})
-                        # if group == 'FeedForward' and k == 'mean':
+                        # if group == 'Embedding' and k == 'mean':
                         #     pdb.set_trace()
                         # hist = self.WANDB.plot.bar(table, "layer", "value", title="test")
                         # self.WANDB.log({hist_title : hist})

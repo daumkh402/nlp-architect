@@ -17,7 +17,7 @@ do
               qnli) data="QNLI"; logging_steps=600;;
               esac
 
-              logging_steps=2;
+              logging_steps=1;
               run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
               writer_dir="../../tensorboard/${project_name}/${run_name}"
 
