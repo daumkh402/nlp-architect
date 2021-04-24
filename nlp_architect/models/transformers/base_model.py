@@ -774,9 +774,9 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                if global_step == logging_steps + 1:
+                # if global_step == logging_steps + 1:
                     # pdb.set_trace()
-                    break
+                #     break
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
                     
