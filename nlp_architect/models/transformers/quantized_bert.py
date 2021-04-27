@@ -211,7 +211,9 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         if self.quant_COM2:
             self.update_ema(self.COM2_thresh, attention_scores.detach())
             scale = self.get_activation_scale(activation = attention_scores, threshold = self.COM2_thresh)        
-            attention_scores = _fake_quantize(attention_scores, scale, 8)                                                                                  
+            attention_scores = _fake_quantize(attention_scores, scale, 8)       
+            if self.stat_attscore:
+                self.temp_score = attention_scores                                                                          
         ##############################################################################
 
         #################################### COM3 ####################################
@@ -231,7 +233,9 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         if self.quant_COM3:
             self.update_ema(self.COM3_thresh, attention_probs.detach())
             scale = self.get_activation_scale(activation = attention_probs, threshold = self.COM3_thresh)       
-            attention_probs = _fake_quantize(attention_probs, scale, 8)                                                                                     
+            attention_probs = _fake_quantize(attention_probs, scale, 8) 
+            if self.stat_attscore:
+                self.temp_probs = attention_probs                                                                                      
         ##############################################################################
         # Mask heads if we want to
         if head_mask is not None:

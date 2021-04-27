@@ -1,4 +1,16 @@
 import matplotlib.pyplot as plt
+import os 
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--wstat_dir')
+args = parser.parse_args()
+wstat_dir args.wstat_dir 
+
+
+
+
 x = plt.subplots(1,1,figsize=(20,5))
 ax.set_xticks(np.arange(length))
 ax.set_xticklabels(name, rotation='vertical',fontsize=8)

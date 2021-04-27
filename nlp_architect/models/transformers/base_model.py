@@ -81,7 +81,6 @@ class Recorder():
         self.model = None
         self.config=None
         self.tokenizer = tokenizer
-        self.train_task = True
         # self.attentions = {}
         self.input_sequence = None
         self.hm_mode = HM_MODE[0]
@@ -99,8 +98,9 @@ class Recorder():
 
         self.writer = SummaryWriter(writer_dir)
         self.l_to_h_score = None
-        self.per_batch_heatmap = False
 
+        self.per_batch_heatmap = False
+        self.stat_attscore = True
         self.pstat_by_layer = { 'Embedding'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},                                              
                                 'Attention'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},   
                                 'FeedForward' : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},
@@ -132,7 +132,11 @@ class Recorder():
             if name == 'bert.encoder' and self.config.output_attentions:
                 handle = layer.register_forward_hook(self.encoder_hook(name, dump_interval))
                 self.hook_list.append(handle)   
-                
+
+            if self.stat_attscore:  
+                self.pstat_by_layer['COM2_out'] = {}
+                self.pstat_by_layer['COM3_out'] = {}            
+
     def convert_tensor_to_string(self, input):    
         input_strings = []
         for sequence in input:
@@ -341,6 +345,47 @@ class Recorder():
                                                 
         return hook
     
+    def com_stat(self):    
+        
+        #hugginface/transformers/modeling_bert/selfAttention
+        #stat_attsocre, temp_score, temp_probs
+        if not self.stat_attscore:
+            return
+        rec_name=False
+
+        if self.pstat_by_layer['COM2_out'] == {}:
+            rec_name = True
+            self.pstat_by_layer['COM2_out']['name'] = self.pstat_by_layer['COM3_out']['name'] = []
+            # self.pstat_by_layer['COM2_out']['max'] = self.pstat_by_layer['COM3_out']['max'] = []
+            # self.pstat_by_layer['COM2_out']['min'] = self.pstat_by_layer['COM3_out']['min'] = []
+            # self.pstat_by_layer['COM2_out']['mean'] = self.pstat_by_layer['COM3_out']['mean'] =[]
+            # self.pstat_by_layer['COM2_out']['skew'] = self.pstat_by_layer['COM3_out']['skew'] =[]
+
+        for k in self.pstat_by_layer['COM2_out'].keys():
+            if k == 'name':
+                continue
+            else:
+                self.pstat_by_layer['COM2_out'][k] = []
+                self.pstat_by_layer['COM3_out'][k] = []
+
+        for name, layer in self.model.named_modules(): 
+            if name.split('.')[-1] == 'self' and self.stat_attscore:
+                com2_max, com2_min, com2_mean, com2_std, com2_skew = self.cal_pstats(layer.temp_score)
+                com3_max, com3_min, com3_mean, com3_std, com3_skew = self.cal_pstats(layer.temp_probs)
+                if rec_name:
+                    self.pstat_by_layer['COM2_out']['name'].append(name)
+                    self.pstat_by_layer['COM3_out']['name'].append(name)
+
+                self.pstat_by_layer['COM2_out']['max'].append(com2_max)
+                self.pstat_by_layer['COM2_out']['min'].append(com2_min)
+                self.pstat_by_layer['COM2_out']['mean'].append(com2_mean)
+                self.pstat_by_layer['COM2_out']['skew'].append(com2_skew)  
+                self.pstat_by_layer['COM3_out']['max'].append(com3_max)
+                self.pstat_by_layer['COM3_out']['min'].append(com3_min)
+                self.pstat_by_layer['COM3_out']['mean'].append(com3_mean)
+                self.pstat_by_layer['COM3_out']['skew'].append(com3_skew)
+
+
     def encoder_hook(self, layer_name, dump_interval):
         def hook(module, input, output) :
             if not self.model.training :
@@ -774,9 +819,9 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                # if global_step == logging_steps + 1:
-                    # pdb.set_trace()
+                # if global_step == 3 * logging_steps + 1:
                 #     break
+                    # pdb.set_trace()
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
                     
@@ -808,7 +853,7 @@ class TransformerBase(TrainableModel):
                     if logging_steps > 0 and global_step % logging_steps == 0:
                         # Log metrics and run evaluation on dev/test
                         eval_time_start = time.time()
-                        best_dev, dev_test, eval_loss = self.update_best_model(
+                        best_dev, dev_test, eval_loss, f1 = self.update_best_model(
                             dev_data_set,
                             test_data_set,
                             best_dev,
@@ -825,8 +870,8 @@ class TransformerBase(TrainableModel):
                             best_step = global_step
                             prev_best_eval = best_dev
                             self.recorder.rec_pstat()
-
-                        self.recorder.writer.add_scalar('stats/eval_loss', eval_loss, self.recorder.step_count)   
+                        self.recorder.writer.add_scalar('stats/eval_loss', eval_loss, self.recorder.step_count)  
+                        self.recorder.writer.add_scalar('stats/eval_score', f1, self.recorder.step_count)  
                         # pdb.set_trace()
                         ############################################################
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
@@ -842,6 +887,7 @@ class TransformerBase(TrainableModel):
                         )
                 ############################################################
                 # self.recorder.WANDB_log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
+                self.recorder.writer.add_scalar("stats/train_loss", tr_loss / global_step, self.recorder.step_count)
                 self.recorder.writer.add_scalar("stats/train_loss", tr_loss / global_step, self.recorder.step_count)
                 self.recorder.writer.add_scalar("stats/learning_rate", self.scheduler.get_lr()[0], self.recorder.step_count)
                 ############################################################
@@ -878,7 +924,6 @@ class TransformerBase(TrainableModel):
 
         if Record:
             self.recorder.l_to_h_heatmap()
-            self.recorder.save_pstat()
             self.recorder.pstat_to_tensorboard()
             self.recorder.remove()
 
@@ -927,7 +972,7 @@ class TransformerBase(TrainableModel):
             eval_loss /= len(ds)   
 
         logger.info("\n\nBest dev=%s. test=%s\n", str(new_best_dev), str(new_test_dev))
-        return new_best_dev, new_test_dev, eval_loss
+        return new_best_dev, new_test_dev, eval_loss, f1
 
     def _evaluate(self, data_set: DataLoader):
         logger.info("***** Running inference *****")
