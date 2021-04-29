@@ -1,24 +1,24 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=0
 
-project_name=0422_Qcomp
+project_name=0425_Qcomp
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "sst-2" 
+for task in  "cola" 
 do
 
     case $task in 
-       cola) data="CoLA"; lr=2e-5; logging_steps=40;;	 #40      			
-       mrpc) data="MRPC"; lr=3e-5; logging_steps=20;;     #20
-       sts-b) data="STS-B"; lr=4e-5; logging_steps=40;;   #40
-       rte) data="RTE"; lr=3e-5; logging_steps=15;;       #15
-       sst-2) data="SST-2"; lr=2e-5; logging_steps=400;;  #400
-       qqp) data="QQP"; lr=3e-5; logging_steps=2200;;     #2200
-       qnli) data="QNLI"; lr=2e-5; logging_steps=600;;    #600
-       mnli) data="MNLI"; lr=2e-5; logging_steps=2400;;   #2400
+       cola) data="CoLA"; lr=2e-5; logging_steps=10;;	 #40      			
+       mrpc) data="MRPC"; lr=3e-5; logging_steps=5;;     #20
+       sts-b) data="STS-B"; lr=4e-5; logging_steps=10;;   #40
+       rte) data="RTE"; lr=3e-5; logging_steps=3;;       #15
+       sst-2) data="SST-2"; lr=2e-5; logging_steps=100;;  #400
+       qqp) data="QQP"; lr=3e-5; logging_steps=450;;     #2200
+       qnli) data="QNLI"; lr=2e-5; logging_steps=150;;    #600
+       mnli) data="MNLI"; lr=2e-5; logging_steps=600;;   #2400
        wnli) data="WNLI"; lr=2e-5; logging_steps=8;;      #8      
     esac
 
 
-    for q in "False False False True True" 
+    for q in "True False False True False" "False True False True False" "False False True True False" "False False False True True" 
     do
         qc=($q)
         for i in 1 2 3

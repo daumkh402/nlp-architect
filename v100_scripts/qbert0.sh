@@ -1,24 +1,24 @@
 export CUDA_VISIBLE_DEVICES=0
 
-project_name=0422_Qcomp
+project_name=0429_Qcomp
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "sst-2" 
+for task in  "mrpc" "cola" "rte"
 do
-
+    bsz=32
     case $task in 
-       cola) data="CoLA"; lr=2e-5; logging_steps=40;;	 #40      			
-       mrpc) data="MRPC"; lr=3e-5; logging_steps=20;;     #20
-       sts-b) data="STS-B"; lr=4e-5; logging_steps=40;;   #40
-       rte) data="RTE"; lr=3e-5; logging_steps=15;;       #15
-       sst-2) data="SST-2"; lr=2e-5; logging_steps=400;;  #400
-       qqp) data="QQP"; lr=3e-5; logging_steps=2200;;     #2200
-       qnli) data="QNLI"; lr=2e-5; logging_steps=600;;    #600
-       mnli) data="MNLI"; lr=2e-5; logging_steps=2400;;   #2400
-       wnli) data="WNLI"; lr=2e-5; logging_steps=8;;      #8      
+       cola) data="CoLA"; lr=5e-5; logging_steps=40; bsz=4;;	 #40      			
+       mrpc) data="MRPC"; lr=3e-5; logging_steps=20; bsz=4;;     #20
+       sts-b) data="STS-B"; lr=4e-5; logging_steps=40;;          #40
+       rte) data="RTE"; lr=3e-5; logging_steps=15; bsz=4;;       #15
+       sst-2) data="SST-2"; lr=2e-5; logging_steps=400;;         #400
+       qqp) data="QQP"; lr=3e-5; logging_steps=2200;;            #2200
+       qnli) data="QNLI"; lr=2e-5; logging_steps=600;;           #600
+       mnli) data="MNLI"; lr=2e-5; logging_steps=2400;;          #2400
+       wnli) data="WNLI"; lr=2e-5; logging_steps=8;;             #8      
     esac
 
 
-    for q in "False True False True False" 
+    for q in "True False False True False " "False True False True False" "False False True True False" "False False False True True" 
     do
         qc=($q)
         for i in 1 2 3
@@ -55,11 +55,11 @@ do
                     --num_train_epochs 3 \
                     --logging_steps $logging_steps  \
                     --save_steps 0 \
-                    --per_gpu_train_batch_size 32 \
+                    --per_gpu_train_batch_size ${bsz} \
                     --per_gpu_eval_batch_size 32  \
                     --writer_dir ${writer_dir} \
                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" 
-                    #--dump_distributions
+                   # --dump_distributions
         done
     done  
 done
