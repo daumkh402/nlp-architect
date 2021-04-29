@@ -6,15 +6,15 @@ for task in  "mrpc" "cola" "rte"
 do
     bsz=32
     case $task in 
-       cola) data="CoLA"; lr=5e-5; logging_steps=40; bsz=4;;	 #40      			
-       mrpc) data="MRPC"; lr=3e-5; logging_steps=20; bsz=4;;     #20
-       sts-b) data="STS-B"; lr=4e-5; logging_steps=40;;          #40
-       rte) data="RTE"; lr=3e-5; logging_steps=15; bsz=4;;       #15
-       sst-2) data="SST-2"; lr=2e-5; logging_steps=400;;         #400
-       qqp) data="QQP"; lr=3e-5; logging_steps=2200;;            #2200
-       qnli) data="QNLI"; lr=2e-5; logging_steps=600;;           #600
-       mnli) data="MNLI"; lr=2e-5; logging_steps=2400;;          #2400
-       wnli) data="WNLI"; lr=2e-5; logging_steps=8;;             #8      
+    cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	     #10      			
+    mrpc) data="MRPC"; lr=2e-5; logging_steps=40; bsz=4;;         #5
+    rte) data="RTE"; lr=2e-5; logging_steps=24; bsz=4;;           #3
+    sts-b) data="STS-B"; lr=4e-5; logging_steps=10;;              #10
+    sst-2) data="SST-2"; lr=2e-5; logging_steps=100;;             #100
+    qqp) data="QQP"; lr=3e-5; logging_steps=550;;                 #550
+    qnli) data="QNLI"; lr=2e-5; logging_steps=150;;               #150
+    mnli) data="MNLI"; lr=2e-5; logging_steps=480;;               #480
+    wnli) data="WNLI"; lr=2e-5; logging_steps=2;;                 #82 
     esac
 
 

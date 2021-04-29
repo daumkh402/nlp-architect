@@ -4,16 +4,17 @@ project_name=0427_FPBERT_evalscore
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
 for task in  "sts-b"
 do
+       bsz=32
        case $task in 
-       cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	    #10      			
+       cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	     #10      			
        mrpc) data="MRPC"; lr=2e-5; logging_steps=40; bsz=4;;         #5
-       sts-b) data="STS-B"; lr=4e-5; logging_steps=10; bsz=32;;      #10
-       rte) data="RTE"; lr=2e-5; logging_steps=24;  bsz=4;;                  #3
-       sst-2) data="SST-2"; lr=2e-5; logging_steps=100; bsz=32;;          #100
-       qqp) data="QQP"; lr=3e-5; logging_steps=550; bsz=32;;                 #550
-       qnli) data="QNLI"; lr=2e-5; logging_steps=150; bsz=32;;               #150
-       mnli) data="MNLI"; lr=2e-5; logging_steps=480; bsz=32;;              #480
-       wnli) data="WNLI"; lr=2e-5; logging_steps=2; bsz=32;;                #82  
+       rte) data="RTE"; lr=2e-5; logging_steps=24; bsz=4;;           #3
+       sts-b) data="STS-B"; lr=4e-5; logging_steps=10;;              #10
+       sst-2) data="SST-2"; lr=2e-5; logging_steps=100;;             #100
+       qqp) data="QQP"; lr=3e-5; logging_steps=550;;                 #550
+       qnli) data="QNLI"; lr=2e-5; logging_steps=150;;               #150
+       mnli) data="MNLI"; lr=2e-5; logging_steps=480;;               #480
+       wnli) data="WNLI"; lr=2e-5; logging_steps=2;;                 #82 
        esac
 
     for i in 1
