@@ -98,7 +98,7 @@ class Recorder():
 
         #flag for choosing data to gather 
         self.per_batch_heatmap = False
-        self.need_com3_hist = True
+        self.need_com3_hist = True and self.model_type == 'bert'
         self.need_input_hook = False
         self.need_param_stat = False
         self.need_attention_output = False

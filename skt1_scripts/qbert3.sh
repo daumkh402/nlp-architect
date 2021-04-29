@@ -1,12 +1,12 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 
 project_name=0429_QBERT_TrainEval
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "cola" 
+for task in  "sst-2" 
 do
 
-    bsz=32
+    bsz=16
     case $task in 
     cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	     #10      			
     mrpc) data="MRPC"; lr=2e-5; logging_steps=40; bsz=4;;         #5

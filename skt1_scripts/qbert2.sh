@@ -1,9 +1,9 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=2
 
 
 project_name=0429_QBERT_TrainEval
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "cola" 
+for task in  "rte" 
 do
 
     bsz=32
