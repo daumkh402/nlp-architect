@@ -1,6 +1,7 @@
 export CUDA_VISIBLE_DEVICES=0
 
-project_name=0427_FPBERT_evalscore
+#project_name=0427_FPBERT_evalscore
+project_name=Test
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
 for task in    "rte" #"mrpc" "cola" "sts-b" 
 do
@@ -15,7 +16,7 @@ do
        mnli) data="MNLI"; lr=2e-5; logging_steps=480; bsz=32;;              #480
        wnli) data="WNLI"; lr=2e-5; logging_steps=2; bsz=32;;                #82  
        esac
-
+    logging_steps=1
     for i in 1
     do  
         run_name="${task}_${i}_${lr}" 
@@ -46,7 +47,7 @@ do
                 --seed $RANDOM \
                 --wandb_project_name ${project_name} \
                 --wandb_run_name ${run_name} \
-                --num_train_epochs 3 \
+                --num_train_epochs 1 \
                 --logging_steps $logging_steps  \
                 --save_steps 0 \
                 --per_gpu_train_batch_size $bsz \

@@ -80,11 +80,8 @@ class Recorder():
         self.step_count = 0
         self.model = None
         self.config=None
-        self.tokenizer = tokenizer
-        # self.attentions = {}
-        self.input_sequence = None
+        self.tokenizer = tokenizer     
         self.hm_mode = HM_MODE[0]
-
 
         self.wandb_off = wandb_off
         self.dump_distributions = dump_distributions
@@ -98,15 +95,20 @@ class Recorder():
 
         self.writer = SummaryWriter(writer_dir)
         self.l_to_h_score = None
+        self.input_sequence = None
 
         self.per_batch_heatmap = False
         self.stat_attscore = True
-        self.pstat_by_layer = { 'Embedding'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},                                              
-                                'Attention'   : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},   
-                                'FeedForward' : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]},
-                                'Pooler'      : { 'name' : [], 'max':[], 'min':[], 'mean':[], 'std':[], 'skew':[]} 
-                              }
-        
+        self.need_input_hook = False
+
+        self.stat_groups = ['Embedding', 'Attention', 'FeedForward', 'Pooler', 'Classifier']
+        self.stat_keys = ['name','max','min','mean','std','skew']
+        self.pstat_by_layer = {}
+        self.param_to_save = {}
+
+        self.com3_in_temp = {}
+        self.com3_out_temp = {}
+
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
             return
@@ -117,13 +119,16 @@ class Recorder():
 
         self.model = model
         self.config = config
-        # pdb.set_trace()
+
+        self.rec_p()
+
         for name, layer in model.named_modules():
             # pdb.set_trace()
 
             if name == 'bert':
-                handle = layer.register_forward_pre_hook(self.Input_hook(name, dump_interval))
-                self.hook_list.append(handle)
+                if self.need_input_hook:
+                    handle = layer.register_forward_pre_hook(self.Input_hook(name, dump_interval))
+                    self.hook_list.append(handle)
 
             if 'dense' in name or 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
                 handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
@@ -132,10 +137,13 @@ class Recorder():
             if name == 'bert.encoder' and self.config.output_attentions:
                 handle = layer.register_forward_hook(self.encoder_hook(name, dump_interval))
                 self.hook_list.append(handle)   
-
-            if self.stat_attscore:  
-                self.pstat_by_layer['COM2_out'] = {}
-                self.pstat_by_layer['COM3_out'] = {}            
+            
+            if self.stat_attscore:
+                if name.split('.')[-1] == 'self':
+                    layer.stat_attscore = True
+                    n = 'L' + name.split('.')[3]+'_com3'  
+                    handle = layer.register_forward_hook(self.com3_hook(n, dump_interval))          #check variation of attention score distribution 
+                    self.hook_list.append(handle) 
 
     def convert_tensor_to_string(self, input):    
         input_strings = []
@@ -155,24 +163,12 @@ class Recorder():
                             xticklabels=x, square=True, yticklabels=y,  
                             cbar=True, ax=ax)
 
-    def Input_hook(self, layer_name, dump_interval):
-        def hook(module, input):
-            if not self.model.training :
-                return
-
-            if self.dump_distributions and self.per_batch_heatmap:
-                if (self.step_count+1) % dump_interval == 0:                   
-                    inp = input[0] if isinstance(input, tuple) else input
-                    self.input_sequence = self.convert_tensor_to_string(inp) 
-        return hook
-
     def cal_pstats(self, param):
         p_mean = torch.mean(param).detach()
         p_std = torch.std(param).detach().cpu()
         p_min = torch.min(param).detach().cpu().data.numpy()
         p_max = torch.max(param).detach().cpu().data.numpy()
-        
-        
+             
         p_diffs = (param - p_mean).detach().cpu()
         p_zscores = p_diffs / p_std 
         p_skews = torch.mean(torch.pow(p_zscores,3.0)).cpu().data.numpy()
@@ -184,35 +180,32 @@ class Recorder():
         # pdb.set_trace()
         
         return p_max, p_min, p_mean, p_std, p_skews
+    
+    def rec_p(self):
+        for g in self.stat_groups:
+            self.param_to_save[g] = []
+            self.pstat_by_layer[g] = {}
+            for k in self.stat_keys:
+                self.pstat_by_layer[g][k] = []
 
-    def rec_pstat(self):
-        rec_name = False
-
-        if self.pstat_by_layer['Embedding']['name'] == []:
-            rec_name = True
-        for group in self.pstat_by_layer.keys():      # key : Embedding, Attention, FeedForward
-            self.pstat_by_layer[group]['max'] = []
-            self.pstat_by_layer[group]['min'] = []
-            self.pstat_by_layer[group]['mean'] = []
-            self.pstat_by_layer[group]['std'] = []
-            self.pstat_by_layer[group]['skew'] = []
-
-        for n , p in self.model.named_parameters(): 
-            if 'weight' not in n:
-                continue
-
-            name, group = self.parse_lname(n)
-            if name is None:
-                continue
-
-            pmax, pmin, pmean, pstd, pskews = self.cal_pstats(p)
-            self.pstat_by_layer[group]['max'].append(pmax)
-            self.pstat_by_layer[group]['min'].append(pmin)
-            self.pstat_by_layer[group]['mean'].append(pmean)
-            self.pstat_by_layer[group]['std'].append(pstd)
-            self.pstat_by_layer[group]['skew'].append(pskews)
-            if rec_name:
+        for n , l in self.model.named_modules(): 
+            if hasattr(l,'weight') and 'LayerNorm' not in n:
+                name, group = self.parse_lname(n) 
+                # if name == None:
+                #     pdb.set_trace()   
                 self.pstat_by_layer[group]['name'].append(name)
+                self.param_to_save[group].append(l.weight)
+
+    def weights_to_stats(self):
+        for g, params in self.param_to_save.items():
+            for param in params:
+                pmax, pmin, pmean, pstd, pskew = self.cal_pstats(param)
+                self.pstat_by_layer[g]['max'].append(pmax)
+                self.pstat_by_layer[g]['min'].append(pmin)
+                self.pstat_by_layer[g]['mean'].append(pmean)
+                self.pstat_by_layer[g]['std'].append(pstd)
+                self.pstat_by_layer[g]['skew'].append(pskew)
+
 
     def save_pstat(self):
         from datetime import date
@@ -224,13 +217,15 @@ class Recorder():
         save_file = os.path.join(save_dir, self.wandb_run_name + '.pickle')
         with open( save_file, 'wb') as f:
             pickle.dump(self.pstat_by_layer, f)
+            if self.stat_attscore:
+                pickle.dump({'com3_in' : self.com3_in_temp},f)
+                pickle.dump({'com3_out' : self.com3_out_temp},f)
 
     def pstat_to_tensorboard(self):
         for group, gdata in self.pstat_by_layer.items():    # Embedding, Attention, FeedForward
-            for k,v in gdata.items():   #name, max, min, mean, std, skew
+            for k,v in gdata.items():                       #name, max, min, mean, std, skew
                 if k == 'name':
                     name = v
-                    length = len(name)
                     # pdb.set_trace()
                 else:   
                     if self.WANDB: 
@@ -291,10 +286,25 @@ class Recorder():
             group = 'Pooler'
             name = 'pooler' 
         
+        elif 'classifier' == lname:
+            group = 'Classifier'
+            name = 'Classifier'
+
         else:
             pass
 
         return name, group
+
+    def Input_hook(self, layer_name, dump_interval):
+        def hook(module, input):
+            if not self.model.training :
+                return
+
+            if self.dump_distributions and self.per_batch_heatmap:
+                if (self.step_count+1) % dump_interval == 0:                   
+                    inp = input[0] if isinstance(input, tuple) else input
+                    self.input_sequence = self.convert_tensor_to_string(inp) 
+        return hook
 
     def QLayer_hook(self, layer_name, dump_interval):    
         def hook(module, input, output):
@@ -345,46 +355,21 @@ class Recorder():
                                                 
         return hook
     
-    def com_stat(self):    
-        
-        #hugginface/transformers/modeling_bert/selfAttention
-        #stat_attsocre, temp_score, temp_probs
-        if not self.stat_attscore:
-            return
-        rec_name=False
+    def com3_hook(self,name, dump_interval):
+        def hook(module, input, output):
+            if not self.model.training :
+                return
 
-        if self.pstat_by_layer['COM2_out'] == {}:
-            rec_name = True
-            self.pstat_by_layer['COM2_out']['name'] = self.pstat_by_layer['COM3_out']['name'] = []
-            # self.pstat_by_layer['COM2_out']['max'] = self.pstat_by_layer['COM3_out']['max'] = []
-            # self.pstat_by_layer['COM2_out']['min'] = self.pstat_by_layer['COM3_out']['min'] = []
-            # self.pstat_by_layer['COM2_out']['mean'] = self.pstat_by_layer['COM3_out']['mean'] =[]
-            # self.pstat_by_layer['COM2_out']['skew'] = self.pstat_by_layer['COM3_out']['skew'] =[]
-
-        for k in self.pstat_by_layer['COM2_out'].keys():
-            if k == 'name':
-                continue
+            if self.stat_attscore:
+                if (self.step_count+1) % dump_interval == 0:
+                    self.writer.add_histogram(name + '/' + 'in', module.com3_in.clone().detach().view(-1), self.step_count)
+                    self.writer.add_histogram(name + '/' + 'out', module.com3_out.clone().detach().view(-1), self.step_count)
+                    self.com3_in_temp[name] = module.com3_in
+                    self.com3_out_temp[name] = module.com3_out
             else:
-                self.pstat_by_layer['COM2_out'][k] = []
-                self.pstat_by_layer['COM3_out'][k] = []
+                pass
 
-        for name, layer in self.model.named_modules(): 
-            if name.split('.')[-1] == 'self' and self.stat_attscore:
-                com2_max, com2_min, com2_mean, com2_std, com2_skew = self.cal_pstats(layer.temp_score)
-                com3_max, com3_min, com3_mean, com3_std, com3_skew = self.cal_pstats(layer.temp_probs)
-                if rec_name:
-                    self.pstat_by_layer['COM2_out']['name'].append(name)
-                    self.pstat_by_layer['COM3_out']['name'].append(name)
-
-                self.pstat_by_layer['COM2_out']['max'].append(com2_max)
-                self.pstat_by_layer['COM2_out']['min'].append(com2_min)
-                self.pstat_by_layer['COM2_out']['mean'].append(com2_mean)
-                self.pstat_by_layer['COM2_out']['skew'].append(com2_skew)  
-                self.pstat_by_layer['COM3_out']['max'].append(com3_max)
-                self.pstat_by_layer['COM3_out']['min'].append(com3_min)
-                self.pstat_by_layer['COM3_out']['mean'].append(com3_mean)
-                self.pstat_by_layer['COM3_out']['skew'].append(com3_skew)
-
+        return hook
 
     def encoder_hook(self, layer_name, dump_interval):
         def hook(module, input, output) :
@@ -794,24 +779,23 @@ class TransformerBase(TrainableModel):
         self.model.zero_grad()
         train_iterator = trange(num_train_epochs, desc="Epoch")
 
+        ######################################################################
         pure_training_time = 0
         eval_time = 0
-
-        #####
         if Record:
             self.recorder.register(model=self.model, config=self.config, dump_interval=logging_steps)
 
         best_step = 0
         prev_best_eval = 0.0
 
-        #####
+        ######################################################################
         for epoch, _ in enumerate(train_iterator):
             print("****** Epoch: " + str(epoch))
             epoch_iterator = tqdm(data_set, desc="Train iteration")       
             for step, batch in enumerate(epoch_iterator):
                 pure_tr_time_start = time.time() 
                 self.model.train()
-                # pdb.set_trace()          
+                          
 
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = self._batch_mapper(batch)
@@ -819,12 +803,13 @@ class TransformerBase(TrainableModel):
                 
                 outputs = self.model(**inputs)
 
-                # if global_step == 3 * logging_steps + 1:
+                ################################################################
+                # if global_step == logging_steps + 1:
                 #     break
                     # pdb.set_trace()
                 # self.model.check_quantize(check_weight=True)
                 # self.model.check_quantize(check_feature=True)
-                    
+                ################################################################       
 
                 loss = outputs[0]  # get loss
 
@@ -850,6 +835,7 @@ class TransformerBase(TrainableModel):
                     if Record:
                         self.recorder.step_count += 1
                     ################################################################
+
                     if logging_steps > 0 and global_step % logging_steps == 0:
                         # Log metrics and run evaluation on dev/test
                         eval_time_start = time.time()
@@ -869,11 +855,12 @@ class TransformerBase(TrainableModel):
                         if prev_best_eval != best_dev:
                             best_step = global_step
                             prev_best_eval = best_dev
-                            self.recorder.rec_pstat()
+                            # self.recorder.rec_pstat()
                         self.recorder.writer.add_scalar('stats/eval_loss', eval_loss, self.recorder.step_count)  
                         self.recorder.writer.add_scalar('stats/eval_score', f1, self.recorder.step_count)  
                         # pdb.set_trace()
                         ############################################################
+
                         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
                         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
                         logging_loss = tr_loss
@@ -885,12 +872,14 @@ class TransformerBase(TrainableModel):
                         self.save_model_checkpoint(
                             output_path=self.output_path, name="checkpoint-{}".format(global_step)
                         )
-                ############################################################
+
+                ########################################################################################################################
                 # self.recorder.WANDB_log({"train_loss": tr_loss / global_step, "learning rate":self.scheduler.get_lr()[0],"global_step":global_step })
                 self.recorder.writer.add_scalar("stats/train_loss", tr_loss / global_step, self.recorder.step_count)
                 self.recorder.writer.add_scalar("stats/train_loss", tr_loss / global_step, self.recorder.step_count)
                 self.recorder.writer.add_scalar("stats/learning_rate", self.scheduler.get_lr()[0], self.recorder.step_count)
-                ############################################################
+                ########################################################################################################################
+
                 if 0 < max_steps < global_step:
                     epoch_iterator.close()
                     break
@@ -903,7 +892,7 @@ class TransformerBase(TrainableModel):
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
         logger.info("lr = {}".format(self.scheduler.get_lr()[0]))
         logger.info("loss = {}".format((tr_loss - logging_loss) / logging_steps))
-        logger.info("best_dev = {} at step = {}".format(prev_best_eval, global_step))
+        logger.info("best_dev = {} at step = {}".format(prev_best_eval, best_step))
         tr_hour = int(pure_training_time / 3600)
         tr_minute = int((pure_training_time % 3600) / 60)
         tr_second = int(pure_training_time % 60)
@@ -924,6 +913,8 @@ class TransformerBase(TrainableModel):
 
         if Record:
             self.recorder.l_to_h_heatmap()
+            self.recorder.weights_to_stats()
+            self.recorder.save_pstat()
             self.recorder.pstat_to_tensorboard()
             self.recorder.remove()
 
