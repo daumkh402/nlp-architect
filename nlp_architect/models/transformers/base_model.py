@@ -83,8 +83,7 @@ class Recorder():
         self.tokenizer = tokenizer     
         self.hm_mode = HM_MODE[0]
 
-        self.wandb_off = wandb_off
-        self.dump_distributions = dump_distributions
+        self.wandb_off = wandb_off   
         self.model_type=model_type
         self.wandb_project_name = wandb_project_name
         self.wandb_run_name = wandb_run_name
@@ -97,17 +96,23 @@ class Recorder():
         self.l_to_h_score = None
         self.input_sequence = None
 
+        #flag for choosing data to gather 
         self.per_batch_heatmap = False
-        self.stat_attscore = True
+        self.need_com3_hist = True
         self.need_input_hook = False
+        self.need_param_stat = False
+        self.need_attention_output = False
+        self.need_distributions = dump_distributions
 
-        self.stat_groups = ['Embedding', 'Attention', 'FeedForward', 'Pooler', 'Classifier']
-        self.stat_keys = ['name','max','min','mean','std','skew']
-        self.pstat_by_layer = {}
-        self.param_to_save = {}
+        if self.need_param_stat:
+            self.stat_groups = ['Embedding', 'Attention', 'FeedForward', 'Pooler', 'Classifier']
+            self.stat_keys = ['name','max','min','mean','std','skew']
+            self.pstat_by_layer = {}  #calculate statistics from weights stored in self.param_to_save.
+            self.param_to_save = {} #store weights of layers by different groups
 
-        self.com3_in_temp = {}
-        self.com3_out_temp = {}
+        if self.need_com3_hist:
+            self.com3_in_temp = {}
+            self.com3_out_temp = {}
 
     def WANDB_log(self, tgt, **kwargs):
         if self.wandb_off:
@@ -123,24 +128,25 @@ class Recorder():
         self.rec_p()
 
         for name, layer in model.named_modules():
-            # pdb.set_trace()
 
             if name == 'bert':
                 if self.need_input_hook:
                     handle = layer.register_forward_pre_hook(self.Input_hook(name, dump_interval))
                     self.hook_list.append(handle)
 
-            if 'dense' in name or 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
-                handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
-                self.hook_list.append(handle)
+            if self.need_param_stat:
+                if 'dense' in name or 'key' in name or 'query' in name or 'value' in name or '_embeddings' in name:   
+                    handle = layer.register_forward_hook(self.QLayer_hook(name, dump_interval))
+                    self.hook_list.append(handle)
 
-            if name == 'bert.encoder' and self.config.output_attentions:
+            if name == 'bert.encoder' and self.need_attention_output:   
+                self.config.output_attentions = True
                 handle = layer.register_forward_hook(self.encoder_hook(name, dump_interval))
                 self.hook_list.append(handle)   
             
-            if self.stat_attscore:
+            if self.need_com3_hist:
                 if name.split('.')[-1] == 'self':
-                    layer.stat_attscore = True
+                    layer.need_com3_hist = True
                     n = 'L' + name.split('.')[3]+'_com3'  
                     handle = layer.register_forward_hook(self.com3_hook(n, dump_interval))          #check variation of attention score distribution 
                     self.hook_list.append(handle) 
@@ -182,30 +188,33 @@ class Recorder():
         return p_max, p_min, p_mean, p_std, p_skews
     
     def rec_p(self):
-        for g in self.stat_groups:
-            self.param_to_save[g] = []
-            self.pstat_by_layer[g] = {}
-            for k in self.stat_keys:
-                self.pstat_by_layer[g][k] = []
+        if self.need_param_stat:
+            for g in self.stat_groups:
+                self.param_to_save[g] = []
+                self.pstat_by_layer[g] = {}
+                for k in self.stat_keys:
+                    self.pstat_by_layer[g][k] = []
 
-        for n , l in self.model.named_modules(): 
-            if hasattr(l,'weight') and 'LayerNorm' not in n:
-                name, group = self.parse_lname(n) 
-                # if name == None:
-                #     pdb.set_trace()   
-                self.pstat_by_layer[group]['name'].append(name)
-                self.param_to_save[group].append(l.weight)
+            for n , l in self.model.named_modules(): 
+                if hasattr(l,'weight') and 'LayerNorm' not in n:
+                    name, group = self.parse_lname(n) 
+                    # if name == None:
+                    #     pdb.set_trace()   
+                    self.pstat_by_layer[group]['name'].append(name)
+                    self.param_to_save[group].append(l.weight)
 
     def weights_to_stats(self):
-        for g, params in self.param_to_save.items():
-            for param in params:
-                pmax, pmin, pmean, pstd, pskew = self.cal_pstats(param)
-                self.pstat_by_layer[g]['max'].append(pmax)
-                self.pstat_by_layer[g]['min'].append(pmin)
-                self.pstat_by_layer[g]['mean'].append(pmean)
-                self.pstat_by_layer[g]['std'].append(pstd)
-                self.pstat_by_layer[g]['skew'].append(pskew)
-
+        if self.need_param_stat:
+            for g, params in self.param_to_save.items():
+                for param in params:
+                    pmax, pmin, pmean, pstd, pskew = self.cal_pstats(param)
+                    self.pstat_by_layer[g]['max'].append(pmax)
+                    self.pstat_by_layer[g]['min'].append(pmin)
+                    self.pstat_by_layer[g]['mean'].append(pmean)
+                    self.pstat_by_layer[g]['std'].append(pstd)
+                    self.pstat_by_layer[g]['skew'].append(pskew)
+        else:
+            return
 
     def save_pstat(self):
         from datetime import date
@@ -215,11 +224,14 @@ class Recorder():
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         save_file = os.path.join(save_dir, self.wandb_run_name + '.pickle')
-        with open( save_file, 'wb') as f:
-            pickle.dump(self.pstat_by_layer, f)
-            if self.stat_attscore:
-                pickle.dump({'com3_in' : self.com3_in_temp},f)
-                pickle.dump({'com3_out' : self.com3_out_temp},f)
+        if self.need_param_stat or self.need_com3_hist:
+            with open( save_file, 'wb') as f:
+                if self.need_param_stat:
+                    pickle.dump(self.pstat_by_layer, f)
+                if self.need_com3_hist:
+                    pickle.dump({'com3_in' : self.com3_in_temp},f)
+                    pickle.dump({'com3_out' : self.com3_out_temp},f)
+
 
     def pstat_to_tensorboard(self):
         for group, gdata in self.pstat_by_layer.items():    # Embedding, Attention, FeedForward
@@ -300,7 +312,7 @@ class Recorder():
             if not self.model.training :
                 return
 
-            if self.dump_distributions and self.per_batch_heatmap:
+            if self.need_distributions and self.per_batch_heatmap:
                 if (self.step_count+1) % dump_interval == 0:                   
                     inp = input[0] if isinstance(input, tuple) else input
                     self.input_sequence = self.convert_tensor_to_string(inp) 
@@ -333,7 +345,7 @@ class Recorder():
                         out_thresh= module.output_thresh.clone().detach().cpu().data.numpy()
                         self.writer.add_scalar(name + '_stats/o_thresh', out_thresh, self.step_count) 
                        
-            if self.dump_distributions:
+            if self.need_distributions:
                 if (self.step_count+1) % dump_interval == 0:                 
                     self.writer.add_histogram(name + '/w_hist', 
                                             module.weight.clone().detach().cpu().data.numpy(), 
@@ -360,7 +372,7 @@ class Recorder():
             if not self.model.training :
                 return
 
-            if self.stat_attscore:
+            if self.need_com3_hist:
                 if (self.step_count+1) % dump_interval == 0:
                     self.writer.add_histogram(name + '/' + 'in', module.com3_in.clone().detach().view(-1), self.step_count)
                     self.writer.add_histogram(name + '/' + 'out', module.com3_out.clone().detach().view(-1), self.step_count)
@@ -377,7 +389,7 @@ class Recorder():
                 return
 
             # pdb.set_trace() 
-            if self.dump_distributions:
+            if self.need_distributions:
                 if self.config.output_hidden_states:
                     attention_weights = output[2]
                 else:
