@@ -80,53 +80,7 @@ def add_glue_args(parser: argparse.ArgumentParser):
         + "by the dataloaders.",
     )
     
-    parser.add_argument(
-    "--wandb_project_name",
-    default=None,
-    type=str,
-    required=True,
-    help="wandb_project_name "
-    )
 
-    parser.add_argument(
-    "--wandb_run_name",
-    default=None,
-    type=str,
-    required=True,
-    help="wandb_run_name "
-    )
-
-    parser.add_argument(
-    "--wandb_off",
-    action="store_true",
-    help="wandb_off"
-    )
-
-    parser.add_argument(
-    "--writer_dir",
-    default=None,
-    type=str,
-    required=True,
-    help="writer_dir for tensorboard"
-    )
-
-    parser.add_argument(
-    "--dump_distributions",
-    action="store_true",
-    help = "dump weight/feature distributions"
-    )   
-
-    parser.add_argument(
-        "--qcomp",
-        type=str
-    )
-
-    parser.add_argument(
-    "--freeze_bert",
-    action="store_true",
-    help = "freeze pretrained bert"
-    )
-    # pdb.set_trace()
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
     parser.add_argument(

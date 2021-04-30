@@ -47,7 +47,7 @@ do
                      --model_type quant_bert \
                      --output_dir ${result_dir} \
                      --evaluate_during_training \
-                     --data_dir ../../glue_data/${data} \
+                     --data_dir ../../ssd/glue_data/${data} \
                      --do_lower_case \
                      --overwrite_output_dir \
                      --seed $RANDOM \
@@ -60,8 +60,8 @@ do
                      --save_steps 0 \
                      --per_gpu_train_batch_size 16 \
                      --per_gpu_eval_batch_size 16 \
-                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" 
-                     # --wandb_off 
+                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" \
+                     --wandb_off 
                      # --freeze_bert
               #--dump_distributions \
               done

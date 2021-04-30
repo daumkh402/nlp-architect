@@ -43,7 +43,7 @@ do
                 --model_type bert \
                 --output_dir ${result_dir} \
                 --evaluate_during_training \
-                --data_dir ../../glue_data/${data} \
+                --data_dir ../../ssd/glue_data/${data} \
                 --do_lower_case \
                 --overwrite_output_dir \
                 --seed $RANDOM \
@@ -54,8 +54,8 @@ do
                 --save_steps 0 \
                 --per_gpu_train_batch_size $bsz \
                 --per_gpu_eval_batch_size 8  \
-                --writer_dir $writer_dir 
-                # --freeze_bert
+                --writer_dir $writer_dir \
+                --wandb_off
 
 
     done 

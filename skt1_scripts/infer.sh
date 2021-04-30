@@ -17,7 +17,7 @@ do
 
        task="sst-2"
        data="CoLA"
-       result_dir="../../nlp_arch_results/inference/${project_name}/test"
+       result_dir="../../ssd/nlp_arch_results/inference/${project_name}/test"
 
        if [ ! -d ${result_dir} ]
               then
@@ -26,11 +26,11 @@ do
        fi
 
        nlp-inference transformer_glue \
-       --model_path ../../bert_model\
+       --model_path \
        --task_name $task \
        --model_type bert \
        --output_dir ${result_dir} \
-       --data_dir ../../glue_data/${data} \
+       --data_dir ../../ssd/glue_data/${data} \
        --do_lower_case \
        --overwrite_output_dir \
        --per_gpu_eval_batch_size 16 

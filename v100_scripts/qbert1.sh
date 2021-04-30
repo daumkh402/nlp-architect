@@ -46,7 +46,7 @@ do
                     --model_type quant_bert \
                     --output_dir ${result_dir} \
                     --evaluate_during_training \
-                    --data_dir ../../glue_data/${data} \
+                    --data_dir ../../ssd/glue_data/${data} \
                     --do_lower_case \
                     --overwrite_output_dir \
                     --seed $RANDOM \
