@@ -10,10 +10,13 @@
             "path": "../glue_data"
         },
         {
-            "path": "../nlp_arch_results"
+            "path": "../ssd/nlp_arch_results"
         },
         {
-            "path": "../anaconda3/envs/nlp/lib/python3.7/site-packages/transformers"
+            "path": "../anaconda3/lib/python3.7/site-packages/transformers"
+        },
+        {
+            "path": "../ssd/glue_data"
         }
     ]
 }

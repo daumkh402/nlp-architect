@@ -72,7 +72,7 @@ class Recorder():
                  wandb_project_name=None,
                  wandb_run_name=None,
                  wandb_off=False,
-                 writer_dir='',
+                 writer_dir=None,
                  dump_distributions=False,
                  model_type=None):
 
@@ -92,7 +92,7 @@ class Recorder():
             self.WANDB.init(name=wandb_run_name, project=wandb_project_name, dir = '../../') 
             self.WANDB.tensorboard.patch(tensorboardX=False, pytorch=True)
 
-        self.writer = SummaryWriter(writer_dir)
+        self.writer = SummaryWriter(writer_dir) if writer_dir is not None else None
         self.l_to_h_score = None
         self.input_sequence = None
 
@@ -477,7 +477,8 @@ class Recorder():
     def remove(self):
         for handle in self.hook_list:
             handle.remove()
-        self.writer.close()
+        if self.writer is not None:
+            self.writer.close()
 
 
 class TransformerBase(TrainableModel):
@@ -555,7 +556,7 @@ class TransformerBase(TrainableModel):
 
         ##########################################################################
         # pdb.set_trace()
-        if model_type == 'quant_bert':
+        if model_type == 'quant_bert' and qcomp is not None:
             self.config.attention_value["requantize_output"] = qcomp["q_Vout"] 
             self.config.quant_COM2 = qcomp["q_COM2"]
             self.config.quant_COM3 = qcomp["q_COM3"]

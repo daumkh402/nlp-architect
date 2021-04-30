@@ -179,7 +179,7 @@ class TransformerSequenceClassifier(TransformerBase):
         # pdb.set_trace()
 
         preds = self._postprocess_logits(logits)
-        label_ids = label_ids.numpy()
+        label_ids = label_ids.numpy() 
         result = self.metric_fn(preds, label_ids)
         try:
             output_eval_file = os.path.join(self.output_path, "eval_results.txt")
@@ -228,10 +228,11 @@ class TransformerSequenceClassifier(TransformerBase):
             TensorDataset:
         """
         # pdb.set_trace()
+        data = self.data_dir.split('/')[-1]
         if isTrain:
-            feature_file = os.path.join(self.data_dir, self.task_name + '_train_features.pickle')
+            feature_file = os.path.join(self.data_dir, data + '_train_features.pickle')
         else:
-            feature_file = os.path.join(self.data_dir, self.task_name + '_dev_features.pickle')
+            feature_file = os.path.join(self.data_dir, data + '_dev_features.pickle')
 
         if os.path.isfile(feature_file):
             with open(feature_file, 'rb') as ff:
@@ -280,18 +281,26 @@ class TransformerSequenceClassifier(TransformerBase):
             logits
         """
         data_set = self.convert_to_tensors(
-            examples, max_seq_length=max_seq_length, include_labels=evaluate
+            examples, max_seq_length=max_seq_length, include_labels=evaluate, isTrain=False
         )
         inf_sampler = SequentialSampler(data_set)
         inf_dataloader = DataLoader(data_set, sampler=inf_sampler, batch_size=batch_size)
         logits = self._evaluate(inf_dataloader)
+
         if not evaluate:
             preds = self._postprocess_logits(logits)
+
         else:
-            logits, label_ids = logits
+            # logits, label_ids = logits
+            logits, label_ids, loss = logits
+            pdb.set_trace()
             preds = self._postprocess_logits(logits)
-            self.evaluate_predictions(logits, label_ids)
-        return preds
+
+            result = self.evaluate_predictions(logits, label_ids)
+
+        # result = self.metric_fn(preds, label_ids)
+        # return preds
+        return preds, result
 
     def _postprocess_logits(self, logits):
         preds = logits.numpy()

@@ -147,17 +147,17 @@ class QuantizedBertSelfAttention(BertSelfAttention):
 
         #################################################################
         # pdb.set_trace()
-        self.qmode = 'EMA'
-        self.register_buffer("_step", torch.zeros(1))
-        self.quant_COM2 = config.quant_COM2
-        self.quant_COM3 = config.quant_COM3
-        self.quant_COM4 = config.quant_COM3
-        self.register_buffer("COM2_thresh", torch.zeros(1))
-        self.register_buffer("COM3_thresh", torch.zeros(1))
-        self.register_buffer("COM4_thresh", torch.zeros(1))
-        self.start_step = start_step
-        self.ema_decay = ema_decay
-
+        self.quant_COM2 = config.quant_COM2 if hasattr(config,'quant_COM2') else False
+        self.quant_COM3 = config.quant_COM3 if hasattr(config,'quant_COM3') else False
+        self.quant_COM4 = config.quant_COM3 if hasattr(config,'quant_COM4') else False
+        if hasattr(config,'quant_COM4'):
+            self.qmode = 'EMA'
+            self.register_buffer("_step", torch.zeros(1))
+            self.register_buffer("COM2_thresh", torch.zeros(1))
+            self.register_buffer("COM3_thresh", torch.zeros(1))
+            self.register_buffer("COM4_thresh", torch.zeros(1))
+            self.start_step = start_step
+            self.ema_decay = ema_decay
         #################################################################
 
     def update_ema(self, ema, input, reduce_fn=lambda x: x.abs().max()):
@@ -248,7 +248,8 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         #     scale = self.get_activation_scale(activation = context_layer, threshold = self.COM4_thresh)  
         #     context_layer = _fake_quantize(context_layer, scale, 8) 
   
-        self._step += 1                              
+        if self.quant_COM2 or self.quant_COM3 or self.quant_COM4: 
+            self._step += 1                              
         ##############################################################################
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()

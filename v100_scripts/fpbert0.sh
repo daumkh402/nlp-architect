@@ -2,7 +2,7 @@ export CUDA_VISIBLE_DEVICES=2
 
 project_name=0425_FP_barPlot
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "wnli" "mnli" 
-for task in  "cola" "mrpc" "rte" "sts-b"
+for task in "sst-2"
 do
        bsz=32
        case $task in 
@@ -51,7 +51,8 @@ do
                 --save_steps 0 \
                 --per_gpu_train_batch_size $bsz \
                 --per_gpu_eval_batch_size 32  \
-                --writer_dir $writer_dir    
+                --writer_dir $writer_dir \
+                --wandb_off   
     done 
 done
 

@@ -79,7 +79,42 @@ def add_glue_args(parser: argparse.ArgumentParser):
         help="The input data dir. Should contain dataset files to be parsed "
         + "by the dataloaders.",
     )
-    
+
+    parser.add_argument(
+    "--wandb_project_name",
+    default=None,
+    type=str,
+    required=True,
+    help="wandb_project_name "
+    )
+
+    parser.add_argument(
+    "--wandb_run_name",
+    default=None,
+    type=str,
+    required=True,
+    help="wandb_run_name "
+    )
+
+    parser.add_argument(
+    "--wandb_off",
+    action="store_true",
+    help="wandb_off"
+    )
+
+    parser.add_argument(
+    "--writer_dir",
+    default=None,
+    type=str,
+    required=False,
+    help="writer_dir for tensorboard"
+    )
+
+    parser.add_argument(
+    "--dump_distributions",
+    action="store_true",
+    help = "dump weight/feature distributions"
+    ) 
 
 
 def add_glue_inference_args(parser: argparse.ArgumentParser):
@@ -186,12 +221,22 @@ def do_inference(args):
         metric_fn=get_metric_fn(task.name),
         do_lower_case=args.do_lower_case,
         load_quantized=args.load_quantized_model,
+        data_dir=args.data_dir,                          
+        wandb_project_name=args.wandb_project_name,
+        wandb_run_name=args.wandb_run_name,
+        wandb_off=args.wandb_off,
+        task_name=args.task_name,
+        writer_dir=args.writer_dir
     )
     classifier.to(device, n_gpus)
     examples = task.get_dev_examples() if args.evaluate else task.get_test_examples()
-    preds = classifier.inference(
+    # preds = classifier.inference(
+    #     examples, args.max_seq_length, args.batch_size, evaluate=args.evaluate
+    # )
+    preds, score = classifier.inference(
         examples, args.max_seq_length, args.batch_size, evaluate=args.evaluate
-    )
+    )   
     with io.open(os.path.join(args.output_dir, "output.txt"), "w", encoding="utf-8") as fw:
+        fw.write("score : {}\n".format(score) )
         for p in preds:
             fw.write("{}\n".format(p))
