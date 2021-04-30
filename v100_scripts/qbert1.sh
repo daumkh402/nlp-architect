@@ -26,14 +26,14 @@ do
         do  
             run_name="${task}_${i}_lr_${lr}_qc_${qc[0]}${qc[1]}${qc[2]}${qc[3]}${qc[4]}" 
             h=0
-            writer_dir="../../tensorboard/${project_name}/${run_name}_${h}"
+            writer_dir="../../ssd/tensorboard/${project_name}/${run_name}_${h}"
             while [ -d ${writer_dir} ]
             do
                 h=$((h+1))
-                writer_dir="../../tensorboard/${project_name}/${run_name}_${h}"
+                writer_dir="../../ssd/tensorboard/${project_name}/${run_name}_${h}"
             done
 
-            result_dir="../../nlp_arch_results/${project_name}/${task}/${run_name}"
+            result_dir="../../ssd/nlp_arch_results/${project_name}/${task}/${run_name}"
             if [ ! -d ${result_dir} ]
             then
                 echo "${result_dir} does not exist"

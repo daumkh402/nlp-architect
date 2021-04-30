@@ -18,10 +18,10 @@ do
 
        logging_steps=100;
        run_name="${task}_${i}_lr_${lr}_loggingstep_${logging_steps}"
-       writer_dir="../tensorboard/${project_name}/${run_name}"
+       writer_dir="../../ssd/tensorboard/${project_name}/${run_name}"
 
 
-       result_dir="../nlp_arch_results/${project_name}/test"
+       result_dir="../../ssd/nlp_arch_results/${project_name}/test"
        if [ ! -d ${result_dir} ]
               then
               echo "${result_dir} does not exist"
