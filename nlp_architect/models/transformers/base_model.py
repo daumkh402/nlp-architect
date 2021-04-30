@@ -234,27 +234,28 @@ class Recorder():
 
 
     def pstat_to_tensorboard(self):
-        for group, gdata in self.pstat_by_layer.items():    # Embedding, Attention, FeedForward
-            for k,v in gdata.items():                       #name, max, min, mean, std, skew
-                if k == 'name':
-                    name = v
-                    # pdb.set_trace()
-                else:   
-                    if self.WANDB: 
-                        data = [[x,y.item()] for (x,y) in zip(name,v)]
-                        table = self.WANDB.Table(data=data, columns=["layer", "value"])
-                        hist_title = group + '/' + k                      
-                        fields = {"label" : "layer",
-                                  "value" : "value"}
-                        custom_chart = self.WANDB.plot_table(vega_spec_name="maruebaleitni/weight",
-                                                             data_table=table, 
-                                                             fields = fields,
-                                                             string_fields={'title' : hist_title})
-                        self.WANDB.log({hist_title : custom_chart})
-                        # if group == 'Embedding' and k == 'mean':
-                        #     pdb.set_trace()
-                        # hist = self.WANDB.plot.bar(table, "layer", "value", title="test")
-                        # self.WANDB.log({hist_title : hist})
+        if self.need_param_stat:
+            for group, gdata in self.pstat_by_layer.items():    # Embedding, Attention, FeedForward
+                for k,v in gdata.items():                       #name, max, min, mean, std, skew
+                    if k == 'name':
+                        name = v
+                        # pdb.set_trace()
+                    else:   
+                        if self.WANDB: 
+                            data = [[x,y.item()] for (x,y) in zip(name,v)]
+                            table = self.WANDB.Table(data=data, columns=["layer", "value"])
+                            hist_title = group + '/' + k                      
+                            fields = {"label" : "layer",
+                                    "value" : "value"}
+                            custom_chart = self.WANDB.plot_table(vega_spec_name="maruebaleitni/weight",
+                                                                data_table=table, 
+                                                                fields = fields,
+                                                                string_fields={'title' : hist_title})
+                            self.WANDB.log({hist_title : custom_chart})
+                            # if group == 'Embedding' and k == 'mean':
+                            #     pdb.set_trace()
+                            # hist = self.WANDB.plot.bar(table, "layer", "value", title="test")
+                            # self.WANDB.log({hist_title : hist})
 
     def parse_lname(self, lname):
         parsed = ''
