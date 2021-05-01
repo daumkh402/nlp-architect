@@ -228,7 +228,7 @@ class TransformerSequenceClassifier(TransformerBase):
             TensorDataset:
         """
         # pdb.set_trace()
-        data = self.data_dir.split('/')[-1]
+        data = self.data_dir.split('/')[-1].lower()
         if isTrain:
             feature_file = os.path.join(self.data_dir, data + '_train_features.pickle')
         else:
