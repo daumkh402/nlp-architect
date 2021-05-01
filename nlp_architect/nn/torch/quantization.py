@@ -264,12 +264,11 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         learn quantization ranges if quantization mode is EMA.
         This function should only be used while training"""
         assert self.training, "should only be called when training"
-        # if self.name == 'attention_output':
-        #     pdb.set_trace()
 
         if self.quant_input:
+
             if self.mode == QuantizationMode.EMA:
-                self._update_ema(self.input_thresh, input.detach())             
+                self._update_ema(self.input_thresh, input.detach()) 
             input_scale = self._get_input_scale(input) 
 
         Q_weight = self.weight
@@ -292,6 +291,8 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
         """Simulate quantized inference. quantize input and perform calculation with only integer numbers.
         This function should only be used while doing inference"""
         assert not self.training, "should only be called when not training"
+        # if self.name == 'head':
+        #     pdb.set_trace()
         input_scale = self._get_input_scale(input)
         self.bias_scale = self.weight_scale * input_scale
         quantized_input = quantize(input, input_scale, self.activation_bits)

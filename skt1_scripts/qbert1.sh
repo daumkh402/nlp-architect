@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=1
 
 
-project_name=0429_QBERT_TrainEval
+project_name=Qcomp_startstep_0
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "mrpc" 
+for task in  "mrpc" "rte" "cola" "sst-2"
 do
 
     bsz=32
@@ -11,18 +11,18 @@ do
     cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	     #10      			
     mrpc) data="MRPC"; lr=2e-5; logging_steps=40; bsz=4;;         #5
     rte) data="RTE"; lr=2e-5; logging_steps=24; bsz=4;;           #3
-    sts-b) data="STS-B"; lr=4e-5; logging_steps=10;;              #10
+    sts-b) data="STS-B"; lr=4e-5; logging_steps=40; bsz=8;;              #10
     sst-2) data="SST-2"; lr=3e-5; logging_steps=100;;             #100
     qqp) data="QQP"; lr=2e-5; logging_steps=550;;                 #550
     qnli) data="QNLI"; lr=2e-5; logging_steps=150;;               #150
     mnli) data="MNLI"; lr=2e-5; logging_steps=480;;               #480
     wnli) data="WNLI"; lr=2e-5; logging_steps=2;;                 #82 
     esac
-
+    
     for q in "False False False True False " 
     do
         qc=($q)
-        for i in 1
+        for i in 1 2 3 
         do
             run_name="${task}_${i}_lr_${lr}_qc_${qc[0]}${qc[1]}${qc[2]}${qc[3]}${qc[4]}"
             h=0

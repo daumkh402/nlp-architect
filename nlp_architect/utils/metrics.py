@@ -104,6 +104,9 @@ def acc_and_f1(preds, labels):
 
 def pearson_and_spearman(preds, labels):
     """get pearson and spearman correlation"""
+    #import pdb
+    #pdb.set_trace()
+    
     pearson_corr = pearsonr(preds, labels)[0]
     spearman_corr = spearmanr(preds, labels)[0]
     return {

@@ -810,10 +810,9 @@ class TransformerBase(TrainableModel):
                 pure_tr_time_start = time.time() 
                 self.model.train()
                           
-
+                # pdb.set_trace()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = self._batch_mapper(batch)
-                
                 
                 outputs = self.model(**inputs)
 
@@ -995,6 +994,7 @@ class TransformerBase(TrainableModel):
                 outputs = self.model(**inputs)
                 if "labels" in inputs:
                     tmp_eval_loss, logits = outputs[:2]
+                    #pdb.set_trace()
                     eval_loss += tmp_eval_loss.mean().item()
                     
                 else:

@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=0
 
 #project_name=TEST
-project_name=0429_QBERT_TrainEval
+project_name=0501_QBERT_TrainEval
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
-for task in  "cola" 
+for task in  "sts-b" 
 do
 
     bsz=32
@@ -11,7 +11,7 @@ do
     cola) data="CoLA"; lr=3e-5; logging_steps=80; bsz=4;;	     #10      			
     mrpc) data="MRPC"; lr=2e-5; logging_steps=40; bsz=4;;         #5
     rte) data="RTE"; lr=2e-5; logging_steps=24; bsz=4;;           #3
-    sts-b) data="STS-B"; lr=4e-5; logging_steps=10;;              #10
+    sts-b) data="STS-B"; lr=4e-5; logging_steps=10; bsz=4;;              #10
     sst-2) data="SST-2"; lr=3e-5; logging_steps=100;;             #100
     qqp) data="QQP"; lr=2e-5; logging_steps=550;;                 #550
     qnli) data="QNLI"; lr=2e-5; logging_steps=150;;               #150
@@ -19,10 +19,12 @@ do
     wnli) data="WNLI"; lr=2e-5; logging_steps=2;;                 #82 
     esac
 
+    for lr in 1e-5 2e-5 3e-5 4e-5 5e-5
+    do
     for q in "False False False True False " 
     do
         qc=($q)
-        for i in 1
+        for i in 1 2 3 
         do
             run_name="${task}_${i}_lr_${lr}_qc_${qc[0]}${qc[1]}${qc[2]}${qc[3]}${qc[4]}"
             h=0
@@ -61,6 +63,7 @@ do
                     --writer_dir ${writer_dir} \
                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}"
                    # --dump_distributions
+        done
         done
     done  
 done
