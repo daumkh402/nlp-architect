@@ -15,12 +15,11 @@ project_name=cola_input_to_SST
 #        # qnli) data="QNLI"; logging_steps=600;;
 #        # esac
 
+model="mrpc"
 task="sst-2"
-data="CoLA"
-result_dir="../../ssd/nlp_arch_results/inference/${project_name}/test"
-pretrained_model="/home/imza/ssd/nlp_arch_results/0425_FP_barPlot/sst-2/lr_2e-5/1/best_dev"
-run_name="${task}_pretrained_${data}_input" 
-
+data="SST-2"
+result_dir="../../ssd/nlp_arch_results/inference/model_${model}_input_${data}"
+pretrained_model="/home/imza/ssd/nlp_arch_results/new_models/model_${model}_data_${task}"
 if [ ! -d ${result_dir} ]
        then
        echo "${result_dir} does not exist"
@@ -28,16 +27,19 @@ if [ ! -d ${result_dir} ]
 fi
 
 nlp-inference transformer_glue \
-       --task_name $task --model_path $pretrained_model \
+       --task_name $task \
+       --model_path $pretrained_model \
        --data_dir ../../ssd/glue_data/${data} \
        --model_type quant_bert \
        --output_dir ${result_dir} \
        --do_lower_case \
        --per_gpu_eval_batch_size 16 \
-       --wandb_project_name ${project_name} \
-       --wandb_run_name ${run_name} \
+       --wandb_project_name '' \
+       --wandb_run_name '' \
        --wandb_off \
        --evaluate \
        --overwrite_output_dir
 
 # done 
+
+
