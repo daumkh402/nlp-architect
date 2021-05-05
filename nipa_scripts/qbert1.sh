@@ -1,6 +1,6 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=1
 
-project_name=0501_Qcomp
+project_name=0505_Qcomp
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
 for task in "qqp" 
 do
@@ -18,7 +18,7 @@ do
     esac
 
 
-    for q in "True False False True False " "False True False True False" "False False True True False" "False False False True True" 
+    for q in "False True False True False" "False False True True False" "False False False True True" 
     do
         qc=($q)
         for i in 1 2 3

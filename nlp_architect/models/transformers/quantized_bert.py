@@ -146,11 +146,11 @@ class QuantizedBertSelfAttention(BertSelfAttention):
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
         #################################################################
-        # pdb.set_trace()
+        #pdb.set_trace()
         self.quant_COM2 = config.quant_COM2 if hasattr(config,'quant_COM2') else False
         self.quant_COM3 = config.quant_COM3 if hasattr(config,'quant_COM3') else False
         self.quant_COM4 = config.quant_COM3 if hasattr(config,'quant_COM4') else False
-        if hasattr(config,'quant_COM4'):
+        if hasattr(config,'quant_COM2'):
             self.qmode = 'EMA'
             self.register_buffer("_step", torch.zeros(1))
             self.register_buffer("COM2_thresh", torch.zeros(1))
@@ -212,8 +212,6 @@ class QuantizedBertSelfAttention(BertSelfAttention):
             self.update_ema(self.COM2_thresh, attention_scores.detach())
             scale = self.get_activation_scale(activation = attention_scores, threshold = self.COM2_thresh)        
             attention_scores = _fake_quantize(attention_scores, scale, 8)       
-            if self.stat_attscore:
-                self.temp_score = attention_scores                                                                          
         ##############################################################################
 
         #################################### COM3 ####################################
@@ -234,8 +232,6 @@ class QuantizedBertSelfAttention(BertSelfAttention):
             self.update_ema(self.COM3_thresh, attention_probs.detach())
             scale = self.get_activation_scale(activation = attention_probs, threshold = self.COM3_thresh)       
             attention_probs = _fake_quantize(attention_probs, scale, 8) 
-            if self.stat_attscore:
-                self.temp_probs = attention_probs                                                                                      
         ##############################################################################
         # Mask heads if we want to
         if head_mask is not None:

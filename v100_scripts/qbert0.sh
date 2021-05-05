@@ -1,6 +1,7 @@
 export CUDA_VISIBLE_DEVICES=0
 
-project_name=0501_Qcomp
+#project_name=0505_Qcomp
+project_name=TEST
 # "cola" "mrpc" "qnli" "rte" "sts-b" "sst-2" "qqp" "wnli" "mnli" 
 for task in  "mrpc" "cola" "rte"
 do
@@ -18,7 +19,7 @@ do
     esac
 
 
-    for q in "True False False True False " "False True False True False" "False False True True False" "False False False True True" 
+    for q in "False True False True False" "False False True True False" "False False False True True" 
     do
         qc=($q)
         for i in 1 2 3
@@ -52,12 +53,13 @@ do
                     --learning_rate ${lr} \
                     --wandb_project_name ${project_name} \
                     --wandb_run_name ${run_name} \
-                    --num_train_epochs 3 \
+                    --num_train_epochs 1 \
                     --logging_steps $logging_steps  \
                     --save_steps 0 \
                     --per_gpu_train_batch_size ${bsz} \
                     --per_gpu_eval_batch_size 32  \
                     --writer_dir ${writer_dir} \
+                    --wandb_off \
                     --qcomp "{'q_Vout' : ${qc[0]}, 'q_COM2': ${qc[1]}, 'q_COM3': ${qc[2]}, 'q_COM4': ${qc[3]}, 'q_COM5': ${qc[4]}}" 
                    # --dump_distributions
         done
