@@ -8,13 +8,15 @@ stsb="/home/imza/ssd/nlp_arch_results/0425_FP_barPlot/sts-b/lr_4e-5/1/best_dev"
 mrpc="/home/imza/ssd/nlp_arch_results/0425_FP_barPlot/mrpc/lr_3e-5/1/best_dev" 
 
 
-MODEL="mrpc"
-DATA="sst-2"
+#MODEL="mrpc"
+#DATA="sst-2"
 
-
+for MODEL in "mrpc" #"mrpc" "sts-b" "rte" "cola" "sst-2"
+do
+for DATA in "rte" #"mrpc" "sts-b" "rte" "cola" "sst-2"
+do
 
 python make_model.py \
---make True \
 --data  $DATA \
 --model $MODEL 
 
@@ -44,3 +46,5 @@ cp  ${label} "/home/imza/ssd/nlp_arch_results/new_models/model_${MODEL}_data_${D
 cp  ${config} "/home/imza/ssd/nlp_arch_results/new_models/model_${MODEL}_data_${DATA}"
 cp  ${vocab} "/home/imza/ssd/nlp_arch_results/new_models/model_${MODEL}_data_${DATA}"
 
+done
+done

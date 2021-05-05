@@ -293,7 +293,7 @@ class TransformerSequenceClassifier(TransformerBase):
         else:
             # logits, label_ids = logits
             logits, label_ids, loss = logits
-            pdb.set_trace()
+            #pdb.set_trace()
             preds = self._postprocess_logits(logits)
 
             result = self.evaluate_predictions(logits, label_ids)

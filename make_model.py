@@ -11,8 +11,7 @@ TASK = ['sst-2', 'cola', 'rte', 'sts-b', 'mrpc']
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--make",
-    default=False,
-    type=bool
+    action = "store_true"
 )
 
 parser.add_argument(
@@ -43,7 +42,7 @@ bert_dir = dirs[task]
 classifier_dir = dirs[data]
 bert = transformers.BertForSequenceClassification.from_pretrained(bert_dir)
 classifier = transformers.BertForSequenceClassification.from_pretrained(classifier_dir)
-pdb.set_trace()
+#pdb.set_trace()
 
 if args.make:
 
@@ -72,7 +71,7 @@ if args.make:
     torch.save(bert_state_dict, os.path.join(save_dir,new_model_name))      ##Have to load state_dict
 
 else:
-    d = "/home/imza/ssd/nlp_arch_results/new_models/model_sst-2_data_cola"
+    d = "/home/imza/ssd/nlp_arch_results/new_models/model_" + task + "_data_" + data
     made_bert = transformers.BertForSequenceClassification.from_pretrained(d)
     made_bert_state_dict = made_bert.state_dict()
     # pdb.set_trace()
@@ -84,5 +83,5 @@ else:
 
     for n,p in classifier.named_parameters():
         if torch.all(torch.eq(made_bert_state_dict[n],p)):
-            print("%s is same in bert and classifier" %n)         
+            print("%s is same in made_bert and classifier" %n)         
 
